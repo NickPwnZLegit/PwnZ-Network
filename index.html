@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#050d19">
+  <meta name="description" content="PwnZ Network is the future gaming and visual creator community within the interconnected Light of Hope ecosystem.">
+  <title>PwnZ Network | Play. Create. Connect.</title>
+  <style>
+    :root { color-scheme: dark; --base:#050a14; --blue:#43aeff; --green:#61ffaa; --ink:#e8faff; --muted:#a6bfd1; --line:rgba(110,207,255,.18); }
+    * { box-sizing: border-box; }
+    html { scroll-behavior:smooth; }
+    body { margin:0; color:var(--ink); background:var(--base); font:16px/1.58 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; min-height:100vh; }
+    body::before { content:""; position:fixed; z-index:-2; inset:0;
+      background:radial-gradient(ellipse 55% 58% at 12% 15%,rgba(17,121,255,.21),transparent 74%),
+      radial-gradient(ellipse 48% 63% at 91% 32%,rgba(18,233,136,.15),transparent 72%),
+      linear-gradient(145deg,#050c19 0%,#030810 55%,#020710 100%); }
+    body::after { content:"";position:fixed;z-index:-1;inset:0;opacity:.4;pointer-events:none;
+      background-image:linear-gradient(rgba(62,191,255,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(62,191,255,.1) 1px,transparent 1px);
+      background-size:64px 64px;mask-image:linear-gradient(to bottom,transparent 0%,black 43%,black 95%);transform:perspective(700px) rotateX(17deg) scale(1.15);}
+    a {color:inherit;} a:focus-visible{outline:3px solid var(--green);outline-offset:5px;border-radius:6px;}
+    .shell{width:min(1140px,calc(100% - 42px));margin-inline:auto;}
+    .nav{display:flex;justify-content:space-between;align-items:center;padding:25px 0;gap:18px;border-bottom:1px solid var(--line);}
+    .brand{display:flex;align-items:center;gap:12px;text-decoration:none;font-weight:900;letter-spacing:.065em;font-size:1.1rem;}
+    .mark{display:grid;place-items:center;width:42px;height:42px;background:linear-gradient(130deg,rgba(43,148,255,.2),rgba(75,255,154,.18));border:1px solid rgba(113,253,209,.48);border-radius:12px;color:var(--green);font-size:1.25rem;box-shadow:0 0 24px rgba(0,183,255,.15);}
+    nav{display:flex;gap:21px;align-items:center;font-size:.93rem;color:var(--muted);}
+    nav a{text-decoration:none;}nav a:hover{color:white;}
+    .status{font-size:.77rem;letter-spacing:.17em;color:var(--green);text-transform:uppercase;padding:9px 13px;border:1px solid rgba(99,255,174,.32);border-radius:999px;background:rgba(28,132,83,.13);}
+    .hero{min-height:570px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(270px,.85fr);align-items:center;gap:32px;padding:76px 0 86px;}
+    .eyebrow{color:var(--green);text-transform:uppercase;letter-spacing:.22em;font-weight:700;font-size:.76rem;}
+    h1{font-size:clamp(3.5rem,9vw,7.3rem);line-height:.96;letter-spacing:-.065em;margin:20px 0 28px;text-shadow:0 0 56px rgba(41,138,255,.16);}
+    h1 span{display:block;background:linear-gradient(105deg,#91e5ff 4%,#48b4ff 43%,#75ffb4 95%);color:transparent;background-clip:text;}
+    .lede{max-width:580px;color:var(--muted);font-size:clamp(1.05rem,2.2vw,1.3rem);}
+    .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:30px;}
+    .button{display:inline-flex;justify-content:center;align-items:center;gap:10px;text-decoration:none;font-size:.91rem;font-weight:750;border-radius:11px;padding:13px 19px;border:1px solid rgba(121,220,255,.3);transition:transform .2s ease,box-shadow .2s ease;}
+    .button:hover{transform:translateY(-2px);box-shadow:0 12px 38px rgba(0,220,160,.12);}
+    .button.primary{background:linear-gradient(110deg,#3390f6,#3ddca1);color:#001525;border:0;}
+    .button.secondary{background:rgba(11,33,54,.65);}
+    .emblem-wrap{position:relative;aspect-ratio:1;display:grid;place-items:center;isolation:isolate;}
+    .emblem-wrap::before{content:"";position:absolute;inset:3%;border-radius:50%;background:radial-gradient(circle,rgba(70,242,174,.16),rgba(37,102,255,.14) 38%,transparent 71%);filter:blur(12px);}
+    .ring{position:absolute;width:75%;aspect-ratio:1;border:1px solid rgba(89,204,255,.34);border-radius:50%;box-shadow:0 0 32px rgba(29,152,255,.12),inset 0 0 29px rgba(29,152,255,.08);}
+    .ring.second{width:95%;border-style:dashed;transform:rotate(-17deg);border-color:rgba(97,255,170,.23);}
+    .ring.third{width:55%;border-color:rgba(96,255,178,.4);}
+    .emblem{position:relative;font-weight:1000;font-size:clamp(3.5rem,9vw,6.7rem);letter-spacing:-.12em;padding-right:.12em;color:#c9f8ff;text-shadow:0 0 24px rgba(60,170,255,.7),0 0 74px rgba(40,238,171,.35);}
+    .chip{position:absolute;bottom:12%;font-size:.7rem;letter-spacing:.2em;color:#8fecc8;background:#071725;padding:8px 16px;border:1px solid rgba(97,255,170,.25);border-radius:100px;}
+    .section{padding:38px 0 75px;border-top:1px solid var(--line);}
+    h2{font-size:clamp(1.8rem,4vw,2.7rem);letter-spacing:-.045em;line-height:1.15;margin:8px 0 16px;}
+    .subhead{max-width:710px;color:var(--muted);margin-bottom:27px;}
+    .grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;}
+    .card{padding:26px 22px;border:1px solid rgba(82,177,221,.22);border-radius:18px;background:linear-gradient(140deg,rgba(23,67,109,.31),rgba(9,42,37,.23));backdrop-filter:blur(12px);}
+    .card:hover{border-color:rgba(95,244,180,.38);}
+    .card .symbol{font-size:1.55rem;display:block;margin-bottom:16px;}
+    h3{margin:0 0 8px;font-size:1.16rem;} .card p{color:var(--muted);font-size:.92rem;margin:0;}
+    .ecosystem{display:flex;flex-wrap:wrap;gap:11px;margin-top:24px;}
+    .ecosystem span{padding:11px 15px;background:rgba(10,47,69,.64);border:1px solid var(--line);border-radius:999px;font-size:.91rem;}
+    .footnote{font-size:.84rem;color:var(--muted);max-width:760px;}
+    footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid var(--line);padding:25px 0 39px;color:var(--muted);font-size:.85rem;}
+    @media (max-width:800px){.hero{grid-template-columns:1fr;padding:55px 0 56px;gap:0}.emblem-wrap{max-width:370px;width:100%;margin:auto}.grid{grid-template-columns:1fr}.nav nav{display:none}h1{font-size:clamp(3.5rem,14vw,6rem)}}
+    @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}.button{transition:none}}
+  </style>
+</head>
+<body>
+  <header class="shell nav">
+    <a class="brand" href="#top" aria-label="PwnZ Network home"><span class="mark">P</span><span>PwnZ NETWORK</span></a>
+    <nav aria-label="Primary navigation"><a href="#vision">Our vision</a><a href="#ecosystem">Ecosystem</a><a href="https://light-of-hope.net/" rel="noopener noreferrer">Light of Hope ↗</a></nav>
+    <span class="status">In development</span>
+  </header>
+  <main id="top" class="shell">
+    <section class="hero" aria-labelledby="headline">
+      <div>
+        <p class="eyebrow">Gaming × creators × community</p>
+        <h1 id="headline">PLAY.<br><span>CREATE.</span><br>CONNECT.</h1>
+        <p class="lede">PwnZ Network is the future home for gamers and visual creators inside the interconnected <strong>Light of Hope ecosystem</strong>. A place for creativity, collaboration and community to level up together.</p>
+        <div class="cta">
+          <a class="button primary" href="#vision">Explore the vision →</a>
+          <a class="button secondary" href="https://light-of-hope.net/" rel="noopener noreferrer">Discover Light of Hope ↗</a>
+        </div>
+      </div>
+      <div class="emblem-wrap" aria-hidden="true"><div class="ring"></div><div class="ring second"></div><div class="ring third"></div><div class="emblem">PwnZ</div><span class="chip">FUTURE NETWORK</span></div>
+    </section>
+    <section class="section" id="vision">
+      <p class="eyebrow">The next level</p><h2>More than a gaming platform.</h2>
+      <p class="subhead">PwnZ is being designed as a connected creative corner of the Light of Hope universe. These are future goals, not live features.</p>
+      <div class="grid">
+        <article class="card"><span class="symbol" aria-hidden="true">🎮</span><h3>Gaming communities</h3><p>Spaces for players, teams, events and communities to connect across games.</p></article>
+        <article class="card"><span class="symbol" aria-hidden="true">🎨</span><h3>Visual creators</h3><p>Showcase artwork, video and digital worlds. Build audiences and discover collaborators.</p></article>
+        <article class="card"><span class="symbol" aria-hidden="true">✦</span><h3>PwnZ token & NFTs</h3><p>Planned ecosystem utility, creator collectibles and staking experiences subject to technical and legal readiness.</p></article>
+      </div>
+    </section>
+    <section class="section" id="ecosystem">
+      <p class="eyebrow">One connected future</p><h2>Part of the Light of Hope ecosystem.</h2>
+      <p class="subhead">Light of Hope is the main project. Its future blockchain vision connects humanitarian community, EdenNetwork identity and governance, PwnZ creativity and EnderNet digital settlement.</p>
+      <div class="ecosystem"><span>💚 Light of Hope</span><span>🛡 EdenNetwork</span><span>🎮 PwnZ Network</span><span>◇ EnderNet</span></div>
+      <p class="footnote" style="margin-top:24px">The PwnZ token already exists, but wallet integrations, staking, token payments and NFT features are not offered on this preview page. The proposed Light of Hope Blockchain and END are future development concepts, not launched infrastructure.</p>
+    </section>
+  </main>
+  <footer class="shell"><span>© PwnZ Network · A future Light of Hope ecosystem project</span><span>Build with purpose. Play with imagination.</span></footer>
+</body>
+</html>
