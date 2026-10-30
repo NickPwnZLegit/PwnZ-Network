@@ -5,8 +5,9 @@ import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc,
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -21,19 +22,36 @@ async function init(){
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();
-   state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
+   state.agreementCurrent=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user){
-     await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus()]);
+     await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus(),loadAgreement()]);
      await refreshBadgeProgress();
    }
    renderSession(); watchPosts();
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
+async function loadAgreement(){
+ try{const record=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
+  const a=record.exists()?record.data():{};
+  state.agreementCurrent=a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now();
+ }catch(e){state.agreementCurrent=false;notice("Agreement permission check unavailable. Community posting remains locked.");}
+}
+$("agree-submit").addEventListener("click",async()=>{
+ if(!state.user||!state.db||!$("agree-check").checked){$("agree-status").textContent="Please read and check the agreement first.";return;}
+ const btn=$("agree-submit");btn.disabled=true;
+ try{
+  const now=Date.now();
+  await setDoc(doc(state.db,"pwnzAgreements",state.user.uid),{uid:state.user.uid,accepted:true,version:AGREEMENT_VERSION,acceptedAt:serverTimestamp(),expiresAt:new Date(now+30*24*60*60*1000)});
+  await loadAgreement();renderSession();notice("PwnZ agreement accepted. Your community access is available.");
+ }catch(e){$("agree-status").textContent="Could not save agreement: "+e.message;}
+ finally{btn.disabled=false;}
+});
 function renderSession(){
  const signed=Boolean(state.user);
+ $("community-agreement").hidden=!(signed&&!state.agreementCurrent);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!signed;
- $("compose").hidden=!(signed&&state.profile);$("profile-display").hidden=!state.profile;
+ $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:state.user?.email||"";
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
  $("identity-state").textContent=state.user?(state.verifiedEden?"✓ Activated Eden RealID ownership confirmed. Your PwnZ identity is separate.":"PwnZ account signed in. Eden RealID not verified on this account. Messaging requires a verified Light Member."):"Choose an account path above.";
@@ -43,10 +61,10 @@ function renderSession(){
   $("bio").value=state.profile.bio||"";$("twitch").value=state.profile.twitch||"";
   $("youtube").value=state.profile.youtube||"";
   $("handle-entry").hidden=true;
-  $("role-application").hidden=false;
+  $("role-application").hidden=!state.agreementCurrent;
   $("profile-note").textContent="Your unique PwnZ profile is active. Your Eden RealID stays private.";
  }else{
-  $("handle-entry").hidden=!signed;
+  $("handle-entry").hidden=!(signed&&state.agreementCurrent);
   $("role-application").hidden=true;
   $("profile-note").textContent=signed?"Choose a unique PwnZ name to post and follow people. This name is separate from Eden RealID.":"Sign in to create a PwnZ profile.";
  }
@@ -136,7 +154,7 @@ function renderPosts(){
   const top=document.createElement("div");top.className="post-top";
   const handle=document.createElement("strong");handle.textContent="@"+(post.authorHandle||"creator");
   top.append(handle);
-  const canFollow=state.user&&state.user.uid!==post.authorUid&&state.profile;
+  const canFollow=state.user&&state.user.uid!==post.authorUid&&state.profile&&state.agreementCurrent;
   if(canFollow){
    const follow=document.createElement("button");follow.type="button";follow.className="mini";
    follow.textContent=state.following.has(post.authorUid)?"Following":"Follow";
@@ -158,7 +176,7 @@ function renderPosts(){
   const comment=document.createElement("button");comment.type="button";comment.className="mini";comment.textContent="Comments";
   const commentsBox=document.createElement("div");commentsBox.hidden=true;commentsBox.className="comment-box";
   comment.addEventListener("click",()=>{commentsBox.hidden=!commentsBox.hidden;if(!commentsBox.hidden)loadComments(post.id,commentsBox);});
-  if(state.user&&state.profile){
+  if(state.user&&state.profile&&state.agreementCurrent){
    const heart=document.createElement("button");heart.type="button";heart.className="mini";heart.textContent="♡ Heart";
    heart.setAttribute("aria-label","Toggle heart for this post");
    const likeRef=doc(state.db,"pwnzHearts",post.id+"__"+state.user.uid);
@@ -216,7 +234,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 $("reserve").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.profile)return;
+ if(!state.user||!state.db||state.profile||!state.agreementCurrent)return;
  const handle=$("handle").value.trim(),key=handle;
  if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
@@ -253,7 +271,7 @@ $("compose").addEventListener("submit",async e=>{
  }catch(e){notice("Unable to publish: "+e.message);}finally{submit.disabled=false;}
 });
 $("role-application").addEventListener("submit",async e=>{
- e.preventDefault();if(!state.user||!state.profile)return;
+ e.preventDefault();if(!state.user||!state.profile||!state.agreementCurrent)return;
  const roleRequested=$("role-request").value;
  const category=({gamer:"pwnz-gamer",game_creator:"pwnz-game-creator",original_game:"pwnz-original-game"})[roleRequested];
  const summary=$("role-summary").value.trim(),favoriteGames=$("role-favorite").value.trim();
