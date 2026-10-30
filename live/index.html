@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#06101c"><meta name="description" content="Watch Twitch gameplay on PwnZ.live. Community streams are free to watch; streaming channels link to their original Twitch source.">
+<title>Live Streams | PwnZ Network</title>
+<style>
+:root{color-scheme:dark;--ink:#edfaff;--soft:#abc4d5;--green:#6effab;--line:rgba(96,191,244,.23)}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top left,rgba(26,116,226,.22),transparent 43%),radial-gradient(ellipse at right,rgba(39,211,125,.12),transparent 48%),#06101c;color:var(--ink);font:16px/1.58 system-ui,sans-serif;min-height:100vh}
+a{color:inherit}button,input{font:inherit}a:focus-visible,input:focus-visible,button:focus-visible{outline:3px solid var(--green);outline-offset:3px}
+.shell{width:min(1060px,calc(100% - 32px));margin:auto}.nav{padding:20px 0;display:flex;align-items:center;justify-content:space-between;gap:15px;flex-wrap:wrap;border-bottom:1px solid var(--line)}.nav a{text-decoration:none}.navlinks{display:flex;gap:16px;flex-wrap:wrap;color:var(--soft);font-size:.92rem}
+.brand{font-weight:900;letter-spacing:.05em}.brand b{color:var(--green)}main{padding:65px 0 100px}
+.kicker{color:var(--green);font-size:.79rem;font-weight:800;text-transform:uppercase;letter-spacing:.19em}h1{font-size:clamp(2.9rem,7vw,5.4rem);letter-spacing:-.06em;line-height:1.02;margin:14px 0 24px}h2{font-size:1.4rem;margin:0 0 10px}
+.muted{color:var(--soft)}.lead{max-width:740px;font-size:1.14rem}.panel{border-radius:20px;padding:24px;border:1px solid var(--line);background:linear-gradient(145deg,rgba(23,61,93,.51),rgba(10,33,40,.61));margin-top:28px}.fields{display:flex;align-items:end;flex-wrap:wrap;gap:12px}.field{display:grid;gap:6px;min-width:min(100%,270px);flex:1}.field label{font-size:.9rem;color:var(--soft)}
+input{background:#071c2d;color:var(--ink);border:1px solid rgba(104,191,245,.4);padding:13px;border-radius:12px;width:100%}.btn{cursor:pointer;background:#14354c;border:1px solid var(--line);border-radius:12px;color:var(--ink);text-decoration:none;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:.92rem;padding:13px 18px;min-height:48px}.btn.primary{background:linear-gradient(105deg,#60adff,#65f9ab);color:#041822;border:0}.btn[disabled]{opacity:.6;cursor:not-allowed}.notice{margin-top:15px;color:#d8edfa;background:#092437;border:1px solid var(--line);padding:13px;border-radius:10px}.video{margin-top:21px;background:#030c16;border:1px solid var(--line);border-radius:14px;overflow:hidden;min-height:160px}.viewer{width:100%;min-height:370px;display:block;border:0}.chat{width:100%;height:450px;border:0;display:block}.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(310px,.62fr);gap:15px}.viewer-box{overflow-x:auto}.viewer,.chat{min-width:400px}.links{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+footer{padding:24px 0 45px;color:var(--soft);font-size:.88rem;border-top:1px solid var(--line)}[hidden]{display:none!important}
+@media(max-width:800px){.grid{grid-template-columns:1fr}main{padding-top:45px}}
+@media(max-width:430px){.viewer-box iframe{display:none}.mobile-note{display:block!important}.chat{min-width:0}}
+</style>
+</head>
+<body>
+<header class="shell nav"><a class="brand" href="/">PwnZ <b>NETWORK</b></a><nav class="navlinks" aria-label="Site navigation"><a href="/arena/">Arena</a><a href="/community/">Community</a><a href="/profile/">Profiles</a><a href="https://light-of-hope.net/" rel="noopener noreferrer">Light of Hope ↗</a></nav></header>
+<main class="shell">
+<div class="kicker">PwnZ live creator hub</div>
+<h1>STREAM ON TWITCH.<br>WATCH ON <span style="color:var(--green)">PwnZ.</span></h1>
+<p class="lead muted">Broadcast with your own Twitch account, then share your Twitch channel on PwnZ. Viewers can watch on PwnZ without an Arena subscription. The stream itself remains hosted by Twitch.</p>
+<div class="panel">
+<h2>Watch a Twitch channel</h2>
+<p class="muted">Enter a Twitch channel username or share this page with <code>?channel=channelname</code>. The streamer must actually be live for live video to appear.</p>
+<form id="stream-form" class="fields">
+<div class="field"><label for="channel">Twitch channel name</label><input id="channel" type="text" placeholder="e.g. twitchdev" autocomplete="off" inputmode="text" minlength="3" maxlength="25" required pattern="[A-Za-z0-9_]{3,25}"></div>
+<button class="btn primary" type="submit">Watch stream</button>
+</form>
+<div class="notice" id="status" role="status" aria-live="polite">No channel selected. Enter a streamer name to start.</div>
+<div class="grid" id="watch-area" hidden>
+  <div class="video viewer-box" aria-label="Twitch stream player">
+    <iframe id="twitch-player" class="viewer" title="Twitch live player" referrerpolicy="strict-origin-when-cross-origin" allow="autoplay; fullscreen" allowfullscreen loading="lazy"></iframe>
+    <p class="mobile-note" hidden style="padding:18px">This screen is too narrow for Twitch's minimum embedded video width. Use the <strong>Watch on Twitch</strong> link below.</p>
+  </div>
+  <div class="video"><iframe id="twitch-chat" class="chat" title="Twitch channel chat" loading="lazy" referrerpolicy="strict-origin-when-cross-origin"></iframe></div>
+</div>
+<div class="links" id="stream-links" hidden>
+ <a id="twitch-link" class="btn" target="_blank" rel="noopener noreferrer">Watch on Twitch ↗</a>
+ <button id="share" class="btn" type="button">Copy PwnZ stream link</button>
+ <button id="close" class="btn" type="button">Close player</button>
+</div>
+</div>
+<div class="panel"><h2>Streamers get a distinct PwnZ identity</h2><p class="muted">A creator will eventually connect a verified Twitch channel to a PwnZ profile, with a PwnZ username separate from their Light of Hope / Eden RealID. One verified ecosystem account can connect the networks without publicly exposing identity credentials.</p><p class="muted">PwnZ profiles, channel verification, posting, donations and streamer discovery require the upcoming account and moderation backend. This preview only displays Twitch's official embed.</p><div class="links"><a class="btn primary" href="/profile/">Explore PwnZ profiles</a><a class="btn" href="/community/">Creator posts & video hub</a></div></div>
+</main><footer class="shell">PwnZ Network · Streams are provided by Twitch and subject to Twitch's policies. Watching is free; gaming and tournaments are planned subscriber features.</footer>
+<script>
+(function(){
+"use strict";
+var input=document.getElementById("channel"), form=document.getElementById("stream-form"), status=document.getElementById("status"), player=document.getElementById("twitch-player"), chat=document.getElementById("twitch-chat"), links=document.getElementById("stream-links"), area=document.getElementById("watch-area"), twitchLink=document.getElementById("twitch-link"), share=document.getElementById("share");
+var selected="";
+function validChannel(value){return /^[A-Za-z0-9_]{3,25}$/.test(value);}
+function show(value){
+ var channel=(value||"").trim();
+ if(!validChannel(channel)){status.textContent="Enter a valid Twitch username (3–25 letters, numbers or underscores).";return;}
+ if(location.protocol!=="https:" && location.hostname!=="localhost"){status.textContent="Twitch embeds require an HTTPS page.";return;}
+ var parent=location.hostname;
+ var video=new URL("https://player.twitch.tv/");
+ video.searchParams.set("channel",channel);video.searchParams.set("parent",parent);video.searchParams.set("autoplay","false");video.searchParams.set("muted","true");
+ var twitchChat=new URL("https://www.twitch.tv/embed/"+encodeURIComponent(channel)+"/chat");
+ twitchChat.searchParams.set("parent",parent);
+ player.src=video.href;chat.src=twitchChat.href;
+ selected=channel;input.value=channel;twitchLink.href="https://www.twitch.tv/"+encodeURIComponent(channel);
+ status.textContent="Displaying Twitch channel "+channel+". The stream plays only if the broadcaster is live. Twitch login may be required for chat.";
+ area.hidden=false;links.hidden=false;
+ var url=new URL(location.href);url.searchParams.set("channel",channel);history.replaceState(null,"",url.pathname+url.search);
+}
+form.addEventListener("submit",function(event){event.preventDefault();show(input.value);});
+share.addEventListener("click",async function(){
+ if(!selected)return;
+ var url=new URL(location.href);url.searchParams.set("channel",selected);
+ try{await navigator.clipboard.writeText(url.href);status.textContent="PwnZ stream link copied.";}catch(e){status.textContent="Copy this URL from your browser: "+url.href;}
+});
+document.getElementById("close").addEventListener("click",function(){player.removeAttribute("src");chat.removeAttribute("src");selected="";links.hidden=true;area.hidden=true;status.textContent="Player closed.";var url=new URL(location.href);url.searchParams.delete("channel");history.replaceState(null,"",url.pathname+url.search);});
+var initial=new URL(location.href).searchParams.get("channel");if(initial)show(initial);
+})();
+</script>
+</body></html>
