@@ -54,6 +54,16 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pwnzPosts/$(id)).data.status == 'published';
     }
 
+
+    function pwnzNoBlock(a,b) {
+      return !exists(/databases/$(database)/documents/pwnzBlocks/$(a + '__' + b))
+        && !exists(/databases/$(database)/documents/pwnzBlocks/$(b + '__' + a));
+    }
+    function pwnzConnected(a,b) {
+      return exists(/databases/$(database)/documents/pwnzFollows/$(a + '__' + b))
+        && exists(/databases/$(database)/documents/pwnzFollows/$(b + '__' + a));
+    }
+
     match /pwnzAgreements/{uid} {
       allow get: if owner(uid);
       allow list, delete: if false;
@@ -139,6 +149,60 @@ service cloud.firestore {
         && getAfter(/databases/$(database)/documents/pwnzProfiles/$(uid)).data.bio == request.resource.data.bio;
       allow delete: if false;
     }
+
+    match /pwnzBlocks/{id} {
+      allow get: if signedIn() && (resource.data.blockerUid == request.auth.uid || resource.data.blockedUid == request.auth.uid);
+      allow list: if false;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['blockerUid','blockedUid','createdAt'])
+        && request.resource.data.blockerUid == request.auth.uid
+        && request.resource.data.blockedUid is string
+        && request.resource.data.blockedUid != request.auth.uid
+        && profileExists(request.resource.data.blockedUid)
+        && id == request.auth.uid + '__' + request.resource.data.blockedUid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.blockerUid == request.auth.uid;
+    }
+    match /pwnzConversations/{id} {
+      allow get, list: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['participants','type','createdAt'])
+        && request.resource.data.keys().hasAll(['participants','type','createdAt'])
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.participants[0] is string
+        && request.resource.data.participants[1] is string
+        && request.resource.data.participants[0] != request.resource.data.participants[1]
+        && request.auth.uid in request.resource.data.participants
+        && id == request.resource.data.participants[0] + '__' + request.resource.data.participants[1]
+        && profileExists(request.resource.data.participants[0])
+        && profileExists(request.resource.data.participants[1])
+        && pwnzConnected(request.resource.data.participants[0],request.resource.data.participants[1])
+        && pwnzNoBlock(request.resource.data.participants[0],request.resource.data.participants[1])
+        && request.resource.data.type == 'direct'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+      match /messages/{msgId} {
+        allow get, list: if signedIn()
+          && exists(/databases/$(database)/documents/pwnzConversations/$(id))
+          && request.auth.uid in get(/databases/$(database)/documents/pwnzConversations/$(id)).data.participants;
+        allow create: if agreementCurrent()
+          && exists(/databases/$(database)/documents/pwnzConversations/$(id))
+          && request.auth.uid in get(/databases/$(database)/documents/pwnzConversations/$(id)).data.participants
+          && pwnzConnected(get(/databases/$(database)/documents/pwnzConversations/$(id)).data.participants[0],get(/databases/$(database)/documents/pwnzConversations/$(id)).data.participants[1])
+          && pwnzNoBlock(get(/databases/$(database)/documents/pwnzConversations/$(id)).data.participants[0],get(/databases/$(database)/documents/pwnzConversations/$(id)).data.participants[1])
+          && request.resource.data.keys().hasOnly(['senderUid','body','createdAt'])
+          && request.resource.data.keys().hasAll(['senderUid','body','createdAt'])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 3000
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
     match /pwnzPosts/{postId} {
       allow read: if resource.data.status == 'published';
       allow create: if agreementCurrent()
