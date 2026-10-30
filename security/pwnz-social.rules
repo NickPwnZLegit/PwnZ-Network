@@ -29,8 +29,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['uid','handle','createdAt'])
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.handle is string
-        && request.resource.data.handle.matches('^[A-Za-z][A-Za-z0-9_]{2,23}$')
-        && request.resource.data.handle.lower() == key
+        && request.resource.data.handle.matches('^[a-z][a-z0-9_]{2,23}$')
+        && request.resource.data.handle == key
         && request.resource.data.createdAt == request.time
         && getAfter(/databases/$(database)/documents/pwnzProfiles/$(request.auth.uid)).data.handleKey == key;
       allow update, delete: if false;
@@ -43,8 +43,8 @@ service cloud.firestore {
         && request.resource.data.keys().hasAll(['uid','handle','handleKey','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.uid == uid
         && request.resource.data.handle is string
-        && request.resource.data.handle.matches('^[A-Za-z][A-Za-z0-9_]{2,23}$')
-        && request.resource.data.handleKey == request.resource.data.handle.lower()
+        && request.resource.data.handle.matches('^[a-z][a-z0-9_]{2,23}$')
+        && request.resource.data.handleKey == request.resource.data.handle
         && request.resource.data.bio == ''
         && request.resource.data.twitch == ''
         && request.resource.data.youtube == ''
