@@ -266,14 +266,14 @@ $("role-application").addEventListener("submit",async e=>{
  const submit=$("role-submit");submit.disabled=true;
  try{
   const token=await state.user.getIdToken();
-  const response=await fetch("https://light-of-hope.net/api/community-registration",{
+  const response=await fetch("/api/pwnz-apply",{
     method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
     body:JSON.stringify({category,organizationName:state.profile.handle,purpose:summary,communityImpact:"Creating and supporting an interactive PwnZ gaming community",role:roleRequested,website:exampleLink,socialLinks:[],answers:{favoriteGames,contentPlan:summary,uploadGames,method,eventIdeas,accessModel,rightsConfirmed:rightsConfirmed?"yes":"no"}})
   });
   const result=await response.json().catch(()=>({}));
   if(!response.ok)throw Error(result.error||"Application service unavailable.");
   $("role-application").reset();notice("Application saved for administrator review. Email notification status: "+(result.notificationStatus||"unknown")+". Your role remains PwnZ Member.");
- }catch(error){notice("Application not submitted: "+error.message+". An activated Eden RealID is required for this shared application route.");}
+ }catch(error){notice("Application not submitted: "+error.message+". You must have a PwnZ profile and a verified email or activated Eden RealID.");}
  finally{submit.disabled=false;}
 });
 
