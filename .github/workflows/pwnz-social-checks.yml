@@ -1,0 +1,24 @@
+name: PwnZ Social Release Checks
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feature/social-messenger-unified-testnet-2026-10-30]
+permissions:
+  contents: read
+jobs:
+  social-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Security and release checks
+        run: node --test security/release-gates.test.cjs
+      - name: JavaScript parse and module syntax checks
+        run: |
+          node --check social/social.js
+          node --check members/members.js
+          node --check messenger/pwnz/app.js
+          node --check messenger/messenger.js
