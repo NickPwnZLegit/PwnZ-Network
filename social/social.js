@@ -44,7 +44,7 @@ $("agree-submit").addEventListener("click",async()=>{
  const btn=$("agree-submit");btn.disabled=true;
  try{
   const now=Date.now();
-  await setDoc(doc(state.db,"pwnzAgreements",state.user.uid),{uid:state.user.uid,accepted:true,version:AGREEMENT_VERSION,acceptedAt:serverTimestamp(),expiresAt:new Date(now+30*24*60*60*1000)});
+  await setDoc(doc(state.db,"pwnzAgreements",state.user.uid),{uid:state.user.uid,accepted:true,version:AGREEMENT_VERSION,acceptedAt:serverTimestamp(),expiresAt:new Date(now+30*24*60*60*1000-5*60*1000)});
   await loadAgreement();renderSession();notice("PwnZ agreement accepted. Your community access is available.");
  }catch(e){$("agree-status").textContent="Could not save agreement: "+e.message;}
  finally{btn.disabled=false;}
