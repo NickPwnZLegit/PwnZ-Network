@@ -33,6 +33,7 @@ async function init(){
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
 async function loadAgreement(){
+ if(state.edenActive){state.agreementCurrent=state.verifiedEden;return;}
  try{const record=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
   const a=record.exists()?record.data():{};
   state.agreementCurrent=state.edenActive ? state.verifiedEden : (a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now());
@@ -248,7 +249,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 $("reserve").addEventListener("click",async()=>{
  if(!state.user||!state.db||state.profile||!state.agreementCurrent)return;
- const handle=$("handle").value.trim(),key=handle;
+ const handle=$("handle").value.trim().toLowerCase(),key=handle;
  if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
  try{
