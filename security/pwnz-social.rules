@@ -1,0 +1,116 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function profileExists(uid) { return exists(/databases/$(database)/documents/pwnzProfiles/$(uid)); }
+    function profile(uid) { return get(/databases/$(database)/documents/pwnzProfiles/$(uid)).data; }
+    function verifiedHandle(uid, handle) {
+      return profileExists(uid) && profile(uid).handle == handle;
+    }
+    function textWithin(value, maximum) {
+      return value is string && value.size() <= maximum;
+    }
+    function optionalVideoId(data) {
+      return !('youtubeId' in data) || (data.youtubeId is string && data.youtubeId.matches('^[A-Za-z0-9_-]{11}$'));
+    }
+    function optionalTwitch(data) {
+      return !('twitch' in data) || (data.twitch is string && data.twitch.matches('^[A-Za-z0-9_]{3,25}$'));
+    }
+    function publicPost(id) {
+      return exists(/databases/$(database)/documents/pwnzPosts/$(id))
+        && get(/databases/$(database)/documents/pwnzPosts/$(id)).data.status == 'published';
+    }
+
+    match /pwnzHandles/{key} {
+      allow read: if true;
+      allow create: if signedIn()
+        && key.matches('^[a-z][a-z0-9_]{2,23}$')
+        && request.resource.data.keys().hasOnly(['uid','handle','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.handle is string
+        && request.resource.data.handle.matches('^[A-Za-z][A-Za-z0-9_]{2,23}$')
+        && request.resource.data.handle.lower() == key
+        && request.resource.data.createdAt == request.time
+        && getAfter(/databases/$(database)/documents/pwnzProfiles/$(request.auth.uid)).data.handleKey == key;
+      allow update, delete: if false;
+    }
+
+    match /pwnzProfiles/{uid} {
+      allow read: if true;
+      allow create: if owner(uid)
+        && request.resource.data.keys().hasOnly(['uid','handle','handleKey','bio','twitch','youtube','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','handle','handleKey','bio','twitch','youtube','createdAt','updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.handle is string
+        && request.resource.data.handle.matches('^[A-Za-z][A-Za-z0-9_]{2,23}$')
+        && request.resource.data.handleKey == request.resource.data.handle.lower()
+        && request.resource.data.bio == ''
+        && request.resource.data.twitch == ''
+        && request.resource.data.youtube == ''
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/pwnzHandles/$(request.resource.data.handleKey)).data.uid == uid;
+      allow update: if owner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio','twitch','youtube','updatedAt'])
+        && textWithin(request.resource.data.bio, 300)
+        && optionalTwitch(request.resource.data)
+        && textWithin(request.resource.data.youtube, 2048)
+        && (
+          request.resource.data.youtube == '' ||
+          request.resource.data.youtube.matches('^https://(www[.])?(youtube[.]com|youtu[.]be)/.*$')
+        )
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /pwnzPosts/{postId} {
+      allow read: if resource.data.status == 'published';
+      allow create: if signedIn()
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','status','createdAt'])
+        && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','status','createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && textWithin(request.resource.data.title, 140)
+        && textWithin(request.resource.data.body, 4000)
+        && (request.resource.data.title.size() > 0 || request.resource.data.body.size() > 0 || 'youtubeId' in request.resource.data || 'twitch' in request.resource.data)
+        && optionalVideoId(request.resource.data)
+        && optionalTwitch(request.resource.data)
+        && request.resource.data.status == 'published'
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /pwnzComments/{commentId} {
+      allow read: if publicPost(resource.data.postId) && resource.data.createdAt is timestamp;
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.keys().hasAll(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.postId is string
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.authorUid == request.auth.uid
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && textWithin(request.resource.data.body, 500)
+        && request.resource.data.body.size() > 0
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /pwnzFollows/{id} {
+      allow read: if signedIn() && (resource.data.followerUid == request.auth.uid || resource.data.followedUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['followerUid','followedUid','createdAt'])
+        && request.resource.data.keys().hasAll(['followerUid','followedUid','createdAt'])
+        && request.resource.data.followerUid == request.auth.uid
+        && request.resource.data.followedUid is string
+        && request.resource.data.followedUid != request.auth.uid
+        && profileExists(request.resource.data.followedUid)
+        && id == request.auth.uid + '__' + request.resource.data.followedUid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.followerUid == request.auth.uid;
+    }
+  }
+}
