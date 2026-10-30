@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07101d">
+  <meta name="description" content="Explore PwnZ Arena: the planned browser-gaming, creator, and tournament hub. Public community access and future subscriber-only gameplay.">
+  <title>PwnZ Arena | The Next Level of Play</title>
+  <style>
+    :root{color-scheme:dark;--bg:#06101c;--ink:#e8fbff;--soft:#9fb9c8;--green:#6effab;--blue:#50b7ff;--border:rgba(110,190,235,.22)}
+    *{box-sizing:border-box} html{scroll-behavior:smooth} body{margin:0;color:var(--ink);font:16px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:radial-gradient(ellipse at 12% 0,rgba(19,111,251,.22),transparent 39%),radial-gradient(ellipse at 86% 26%,rgba(31,225,143,.13),transparent 36%),var(--bg)}
+    a{color:inherit} button,input{font:inherit} button{cursor:pointer} a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--green);outline-offset:3px}
+    .shell{width:min(1140px,calc(100% - 32px));margin:0 auto}.nav{display:flex;gap:22px;align-items:center;justify-content:space-between;padding:19px 0;border-bottom:1px solid var(--border);flex-wrap:wrap}
+    .brand{text-decoration:none;font-weight:900;letter-spacing:.06em}.brand strong{color:var(--green)} .navlinks{display:flex;gap:17px;flex-wrap:wrap;font-size:.9rem;color:var(--soft)} .navlinks a{text-decoration:none}.navlinks a:hover{color:white}
+    .pill,.tag{display:inline-flex;align-items:center;border-radius:100px;border:1px solid rgba(99,255,175,.3);background:rgba(55,180,115,.1);color:var(--green);font-size:.74rem;letter-spacing:.1em;text-transform:uppercase;padding:7px 11px;font-weight:750}
+    .hero{padding:73px 0 69px;max-width:910px}.eyebrow{color:var(--green);font-size:.77rem;font-weight:800;letter-spacing:.17em;text-transform:uppercase}
+    h1{font-size:clamp(3.1rem,9vw,6.8rem);line-height:.98;letter-spacing:-.065em;margin:18px 0 21px} h1 em{font-style:normal;color:transparent;background:linear-gradient(90deg,#5ab5ff,#6affb2);background-clip:text}
+    h2{font-size:clamp(1.8rem,4.3vw,2.8rem);line-height:1.12;letter-spacing:-.035em;margin:8px 0 15px}h3{font-size:1.16rem;margin:0 0 9px}
+    p{margin:0 0 13px}.lead{color:var(--soft);font-size:clamp(1.08rem,2vw,1.26rem);max-width:780px}
+    .actions{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}.btn{display:inline-flex;align-items:center;justify-content:center;text-align:center;text-decoration:none;background:#122a40;border:1px solid var(--border);border-radius:12px;color:#ebfbff;padding:12px 17px;font-size:.91rem;font-weight:800;min-height:45px}.btn.primary{background:linear-gradient(110deg,#53a4ff,#6effab);border:none;color:#031827}.btn:hover{filter:brightness(1.12)}.btn:disabled{opacity:.55;cursor:not-allowed}
+    .section{border-top:1px solid var(--border);padding:58px 0}.muted{color:var(--soft)}.small{font-size:.88rem}.grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+    .panel{border:1px solid var(--border);border-radius:19px;background:linear-gradient(145deg,rgba(24,63,97,.53),rgba(5,28,32,.65));padding:24px;min-width:0}.panel p{color:var(--soft)}.feature{display:flex;gap:12px;align-items:flex-start;margin:13px 0}.feature b{color:var(--green)}.feature span{font-size:1.17rem}.feature p{margin:0}.panel.highlight{border-color:rgba(109,255,175,.56);box-shadow:0 0 50px rgba(19,203,115,.07)}.notice{border:1px solid rgba(81,181,255,.3);background:rgba(27,91,146,.16);border-radius:12px;padding:14px 17px;margin-top:20px;color:#cae8f7}
+    .filters{display:flex;gap:9px;flex-wrap:wrap;margin:21px 0}.filter{background:#0b263b;color:var(--soft);border:1px solid var(--border);border-radius:99px;padding:8px 13px}.filter[aria-pressed=true]{color:#031b20;background:var(--green);border-color:var(--green);font-weight:850}
+    .game{display:flex;flex-direction:column}.art{height:136px;border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 60% 30%,rgba(123,222,255,.39),transparent 36%),linear-gradient(135deg,#083b70,#0e2235 65%,#0b3b2c);margin-bottom:19px;font-size:3rem;border:1px solid rgba(122,210,250,.18)}.game:nth-child(2) .art{background:radial-gradient(circle at 40% 30%,rgba(112,255,150,.32),transparent 44%),linear-gradient(145deg,#152744,#133b3d)}.game:nth-child(3) .art{background:radial-gradient(circle at 50% 30%,rgba(89,185,255,.3),transparent 40%),linear-gradient(145deg,#172b59,#1b2b32)}
+    .game .tag{width:max-content;margin-bottom:12px}.game p{flex:1}.game .btn{margin-top:10px} .statusline{padding:16px 18px;border-radius:12px;background:rgba(11,39,54,.8);border:1px solid var(--border);color:var(--soft);margin-bottom:20px} .statusline strong{color:var(--ink)}
+    .search{width:100%;max-width:400px;padding:11px 14px;border:1px solid var(--border);border-radius:10px;color:var(--ink);background:#0b2031}.empty{padding:30px;color:var(--soft);border:1px dashed var(--border);border-radius:14px}.step{display:flex;gap:14px;align-items:flex-start;margin:14px 0}.number{flex:none;display:grid;place-items:center;border:1px solid var(--border);width:36px;height:36px;border-radius:11px;color:var(--green);font-weight:900}
+    footer{padding:28px 0 50px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;color:var(--soft);font-size:.87rem}
+    [hidden]{display:none!important}
+    @media(max-width:790px){.grid,.two{grid-template-columns:1fr}.hero{padding:54px 0}.section{padding:44px 0}.panel{padding:21px}.navlinks{gap:10px}.pill{font-size:.67rem}}
+  </style>
+</head>
+<body>
+  <header class="shell nav">
+    <a class="brand" href="/">PwnZ <strong>NETWORK</strong></a>
+    <nav class="navlinks" aria-label="PwnZ navigation">
+      <a href="#access">Access</a><a href="#games">Games</a><a href="#community">Community</a><a href="#tournaments">Tournaments</a><a href="#roadmap">Roadmap</a>
+    </nav>
+    <span class="pill">Arena preview</span>
+  </header>
+  <main class="shell">
+    <section class="hero" aria-labelledby="headline">
+      <div class="eyebrow">PwnZ Arena · foundation build</div>
+      <h1 id="headline">EVERYONE WATCHES.<br><em>MEMBERS PLAY.</em></h1>
+      <p class="lead">Follow creators, explore games, watch live streams, post, chat and support the community without an Arena subscription. Future subscribers will unlock browser games, multiplayer competition and tournament entry.</p>
+      <div class="actions"><a class="btn primary" href="#games">Explore game concepts ↓</a><a class="btn" href="#access">How membership works</a></div>
+      <p class="small muted" style="margin-top:17px">Development preview only. No subscriptions are being sold, no games are playable yet and no cash or token prizes are currently offered.</p>
+    </section>
+
+    <section class="section" id="access" aria-labelledby="access-title">
+      <div class="eyebrow">Access model</div><h2 id="access-title">A community for everyone. An arena for members.</h2>
+      <div class="two">
+        <article class="panel">
+          <span class="tag">Public access · no Arena pass</span><h3 style="margin-top:14px">PwnZ Community</h3>
+          <div class="feature"><span>💬</span><p><b>Chat and posts</b><br>Community discussions, creators and player profiles.</p></div>
+          <div class="feature"><span>📺</span><p><b>Watch and browse</b><br>Live streams, uploaded gameplay and game pages.</p></div>
+          <div class="feature"><span>💚</span><p><b>Support creators</b><br>Donations and tips through approved payment tools, when launched.</p></div>
+          <p class="small">Accounts, storage, moderation, streaming and donation services are not yet connected.</p>
+        </article>
+        <article class="panel highlight">
+          <span class="tag">Monthly subscription · planned</span><h3 style="margin-top:14px">PwnZ Arena Member</h3>
+          <div class="feature"><span>🎮</span><p><b>Play browser games</b><br>No traditional emulator installation needed for supported titles.</p></div>
+          <div class="feature"><span>⚔️</span><p><b>Compete together</b><br>Multiplayer rooms, leaderboards and organized tournaments.</p></div>
+          <div class="feature"><span>🏆</span><p><b>Eligible prize events</b><br>Possible token airdrops and cash prizes, subject to posted rules and legal approval.</p></div>
+          <p class="small">Price is not set. Paid accounts, tournament entry and rewards are disabled until their backend and compliance checks are complete.</p>
+        </article>
+      </div>
+      <div class="notice" id="gate-status" role="status" aria-live="polite"><strong>Membership gateway:</strong> Gaming and tournament permissions are locked during the foundation build.</div>
+      <div class="actions"><button class="btn" type="button" id="check-access">Check Arena access</button><a class="btn" href="#roadmap">See what comes next</a></div>
+    </section>
+
+    <section class="section" id="games" aria-labelledby="games-title">
+      <div class="eyebrow">Browser-powered play</div><h2 id="games-title">The future game library.</h2>
+      <p class="muted">Games are planned concepts, not uploaded titles. Only original, appropriately licensed or authorized games will be hosted. Membership will be checked by the server before launching any game session.</p>
+      <label for="game-search" class="small muted">Find a game concept</label>
+      <div style="margin-top:7px"><input id="game-search" class="search" type="search" placeholder="Search arena, retro, creative…" autocomplete="off"></div>
+      <div class="filters" role="group" aria-label="Filter game concepts">
+        <button class="filter" type="button" data-filter="all" aria-pressed="true">All</button>
+        <button class="filter" type="button" data-filter="action" aria-pressed="false">Action</button>
+        <button class="filter" type="button" data-filter="retro" aria-pressed="false">Retro</button>
+        <button class="filter" type="button" data-filter="creative" aria-pressed="false">Creative</button>
+      </div>
+      <div class="grid" id="game-list">
+        <article class="panel game" data-genre="action" data-name="arena zero team multiplayer">
+          <div class="art" aria-hidden="true">⚔️</div><span class="tag">Concept · Action</span><h3>Arena Zero</h3><p>Fast-paced team battles, custom arenas and competitive lobbies.</p>
+          <button class="btn game-access" type="button">Check player access 🔒</button>
+        </article>
+        <article class="panel game" data-genre="retro" data-name="retro rift classics browser">
+          <div class="art" aria-hidden="true">👾</div><span class="tag">Concept · Retro</span><h3>Retro Rift</h3><p>Authorized classic-style games adapted for modern browser play.</p>
+          <button class="btn game-access" type="button">Check player access 🔒</button>
+        </article>
+        <article class="panel game" data-genre="creative" data-name="creator worlds maps community">
+          <div class="art" aria-hidden="true">🪐</div><span class="tag">Concept · Creative</span><h3>Creator Worlds</h3><p>Community-made worlds, fresh maps and future creator showcases.</p>
+          <button class="btn game-access" type="button">Check player access 🔒</button>
+        </article>
+      </div>
+      <p class="empty" id="no-games" hidden>No matching concepts. Try another filter.</p>
+    </section>
+
+    <section class="section" id="community" aria-labelledby="community-title">
+      <div class="eyebrow">Public community · future services</div><h2 id="community-title">The social network stays open.</h2>
+      <div class="grid">
+        <article class="panel"><span style="font-size:2rem" aria-hidden="true">💬</span><h3>Chat & posts</h3><p>A public community feed, group chat and creator posts with moderation tools. No live feed is connected yet.</p><span class="tag">Integration planned</span></article>
+        <article class="panel"><span style="font-size:2rem" aria-hidden="true">📡</span><h3>Streams & uploads</h3><p>Watch live broadcasts and uploaded game recordings without a paid Arena pass. No streams or uploads are connected yet.</p><span class="tag">Integration planned</span></article>
+        <article class="panel"><span style="font-size:2rem" aria-hidden="true">💚</span><h3>Donations & tips</h3><p>Future creator and community support with transparent payments, receipts and reporting. Donations are not being collected here.</p><span class="tag">Integration planned</span></article>
+      </div>
+    </section>
+
+    <section class="section" id="tournaments" aria-labelledby="tournaments-title">
+      <div class="eyebrow">Competitive network</div><h2 id="tournaments-title">Tournaments built for the old-school thrill.</h2>
+      <p class="muted">Arena subscribers will eventually be able to join eligible skill-based events, teams and seasonal competitions. Published rules, age and location eligibility, anti-cheat controls and prize funding will be required before any prize competition launches.</p>
+      <div class="two">
+        <article class="panel"><span class="tag">Not yet scheduled</span><h3 style="margin-top:16px">PwnZ Founders Cup</h3><p>Our first proposed competitive season, with match brackets and verified results.</p><button class="btn tournament-access" type="button">Check tournament eligibility 🔒</button></article>
+        <article class="panel"><span class="tag">Not yet scheduled</span><h3 style="margin-top:16px">Creator Clash</h3><p>Proposed community-built arenas, creator teams and seasonal championships.</p><button class="btn tournament-access" type="button">Check tournament eligibility 🔒</button></article>
+      </div>
+      <div class="notice">Prizes are prospective, not guaranteed. Cash awards and token airdrops will remain unavailable until event rules, payment providers, legal reviews and applicable eligibility restrictions are approved.</div>
+    </section>
+
+    <section class="section" id="roadmap" aria-labelledby="roadmap-title">
+      <div class="eyebrow">Build sequence</div><h2 id="roadmap-title">From foundation to full arena.</h2>
+      <div class="two">
+        <div class="panel">
+          <div class="step"><div class="number">01</div><div><h3>Foundation · in progress</h3><p>Website, game catalog preview, community vision and server-denied membership gateway.</p></div></div>
+          <div class="step"><div class="number">02</div><div><h3>Public social launch</h3><p>Verified accounts, profiles, posts, chat, creator uploads, streaming and compliant creator support.</p></div></div>
+        </div>
+        <div class="panel">
+          <div class="step"><div class="number">03</div><div><h3>Arena membership TestNet</h3><p>Real recurring billing, account-linked membership validation, licensed browser games and multiplayer rooms.</p></div></div>
+          <div class="step"><div class="number">04</div><div><h3>Championships & rewards</h3><p>Leaderboards, anti-cheat, event rules, eligible prizes and optional future PwnZ token integrations.</p></div></div>
+        </div>
+      </div>
+      <p class="small muted" style="margin-top:22px">PwnZ is part of the wider Light of Hope ecosystem. EdenNetwork identity, NFTs, token utilities and future blockchain interoperability remain separate development milestones.</p>
+      <div class="actions"><a class="btn primary" href="/">Back to PwnZ.live</a><a class="btn" href="https://light-of-hope.net/" target="_blank" rel="noopener noreferrer">Light of Hope ↗</a></div>
+    </section>
+  </main>
+  <footer class="shell"><span>© PwnZ Network · Arena foundation preview</span><span>Community first. Member-only gameplay when ready.</span></footer>
+  <script>
+  (function(){
+    "use strict";
+    var filters=document.querySelectorAll(".filter"), games=document.querySelectorAll(".game"), search=document.getElementById("game-search"), status=document.getElementById("gate-status");
+    var current="all";
+    function updateGames(){
+      var q=(search.value||"").trim().toLowerCase(), visible=0;
+      games.forEach(function(card){var fits=(current==="all"||card.dataset.genre===current)&&card.dataset.name.indexOf(q)!==-1; card.hidden=!fits;if(fits)visible++});
+      document.getElementById("no-games").hidden=visible!==0;
+    }
+    filters.forEach(function(button){button.addEventListener("click",function(){current=button.dataset.filter;filters.forEach(function(b){b.setAttribute("aria-pressed",String(b===button))});updateGames()})});
+    search.addEventListener("input",updateGames);
+    async function checkAccess(kind){
+      var nodes=document.querySelectorAll(".game-access,.tournament-access,#check-access");
+      nodes.forEach(function(b){b.disabled=true});
+      status.innerHTML="<strong>Checking membership gateway…</strong>";
+      try{
+        var resp=await fetch("/api/arena/access",{credentials:"include",cache:"no-store",headers:{"Accept":"application/json"}});
+        if(!resp.ok)throw Error("Gateway unavailable");
+        var data=await resp.json();
+        var permission=kind==="tournament"?data.permissions&&data.permissions.enterTournaments:data.permissions&&data.permissions.play;
+        if(permission===true && data.subscription && data.subscription.status==="active"){
+          status.innerHTML="<strong>Account access recognized.</strong> The secured game launcher and tournament registration server will be enabled in a later phase.";
+        }else{
+          status.innerHTML="<strong>Arena locked:</strong> "+(data.message||"Verified paid membership is not available yet.")+" Public browsing remains open.";
+        }
+      }catch(e){status.innerHTML="<strong>Arena locked:</strong> Subscription service is not connected. No payments or tournament registrations are being accepted."}
+      nodes.forEach(function(b){b.disabled=false});
+      status.scrollIntoView({behavior:"smooth",block:"center"});
+    }
+    document.getElementById("check-access").addEventListener("click",function(){checkAccess("play")});
+    document.querySelectorAll(".game-access").forEach(function(b){b.addEventListener("click",function(){checkAccess("play")})});
+    document.querySelectorAll(".tournament-access").forEach(function(b){b.addEventListener("click",function(){checkAccess("tournament")})});
+  })();
+  </script>
+</body>
+</html>
