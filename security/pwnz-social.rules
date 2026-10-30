@@ -2,12 +2,37 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
-    function agreementCurrent() {
+    function edenMember() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/profiles/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/edenRealIdOwners/$(request.auth.uid))
+        && get(/databases/$(database)/documents/edenRealIdOwners/$(request.auth.uid)).data.uid == request.auth.uid
+        && (
+          get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.get('profileStatus','') == 'active'
+          || get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.get('edenRealIdStatus','') == 'activated_v16'
+          || (
+            get(/databases/$(database)/documents/edenRealIdOwners/$(request.auth.uid)).data.get('status','') == 'grandfathered'
+            && get(/databases/$(database)/documents/edenRealIdOwners/$(request.auth.uid)).data.get('reservationType','') == 'legacy-profile-migration'
+            && get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.get('memberNumber',0) > 0
+          )
+        );
+    }
+    function edenAgreementCurrent() {
+      return edenMember()
+        && exists(/databases/$(database)/documents/agreements/$(request.auth.uid))
+        && get(/databases/$(database)/documents/agreements/$(request.auth.uid)).data.get('accepted',false) == true
+        && get(/databases/$(database)/documents/agreements/$(request.auth.uid)).data.get('agreementVersion','') == 'v16-2026.08.27.1'
+        && get(/databases/$(database)/documents/agreements/$(request.auth.uid)).data.expiresAt > request.time;
+    }
+    function pwnzAgreementCurrent() {
       return signedIn()
         && exists(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid))
         && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.accepted == true
         && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.version == 'pwnz-2026.10.30.1'
         && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.expiresAt > request.time;
+    }
+    function agreementCurrent() {
+      return signedIn() && (edenMember() ? edenAgreementCurrent() : pwnzAgreementCurrent());
     }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
     function profileExists(uid) { return exists(/databases/$(database)/documents/pwnzProfiles/$(uid)); }
@@ -32,7 +57,7 @@ service cloud.firestore {
     match /pwnzAgreements/{uid} {
       allow get: if owner(uid);
       allow list, delete: if false;
-      allow create, update: if owner(uid)
+      allow create, update: if owner(uid) && !edenMember()
         && request.resource.data.keys().hasOnly(['uid','accepted','version','acceptedAt','expiresAt'])
         && request.resource.data.keys().hasAll(['uid','accepted','version','acceptedAt','expiresAt'])
         && request.resource.data.uid == uid
