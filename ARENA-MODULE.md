@@ -59,3 +59,10 @@ Open-source code licenses do not automatically grant commercial rights to a game
 - Private message access still requires valid owner, active Light of Hope profile, current agreement, participant checks and blocks. Current cross-network messaging adapter is development only; do not deploy against Light of Hope data until Firestore emulator tests pass.
 - Additional Firestore query index `pwnzPosts(authorUid ASC,status ASC)` included to support badge progress.
 - User-created accounts require abuse controls, verification and explicit identity-link policy before open registration. Tokens, airdrops and tournament privileges are NOT attached to cosmetic badges.
+
+## Current integration inspection (Oct 30, 2026)
+- Vercel `pwnz-network` currently has **zero configured project environment variables**, while the `light-of-hope-site` project has the `VITE_FIREBASE_*` public web configuration keys. No Admin SDK credential has been copied. PwnZ cannot connect to the shared database without assigning only the corresponding public client config to its own preview environment.
+- The Messenger TestNet now contains an exact PwnZ handle finder. It looks up a public PwnZ name and requests a conversation in the **same** existing Light of Hope `lightConversations` collection, relying on the Light of Hope member, recipient and block rules for authorization. It does not grant write access itself.
+- Firebase initialization has been normalized to the default app instance for both PwnZ pages, allowing authentication persistence on the same PwnZ domain when using the same configured Firebase project. It does **not** provide seamless cross-domain login or SSO.
+- Do not deploy PwnZ standalone Firestore rules over Light of Hope rules. Merge collection matches and run emulator tests with two valid members, a PwnZ-only account, blocked contact, expired agreement, guest, and spoofed author.
+- Identity and messenger integration remains a gated preview pending authorized domain configuration, merged rules, safe member discovery and moderation. Current browser checks are not replacements for server-enforced rules.
