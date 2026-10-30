@@ -2,9 +2,16 @@
 Date: 2026-10-30
 Status: PREVIEW ONLY. Not safe to merge to production until conditions below pass.
 
+## Authentication owner verification (2026-10-30)
+- User-provided Firebase Console screenshot confirms `pwnz.live` and `www.pwnz.live` appear under Authentication > Settings > Authorized domains.
+- User-provided Firebase Console screenshot confirms the Email/Password provider is enabled.
+- Existing automatic account linking by matching email was displayed selected; this is **not** proof of Eden RealID ownership and is not cross-domain single sign-on.
+- The exact Vercel preview hostname has **not** been confirmed in Authorized domains. Browser tests on a protected preview may need separate temporary authorization, especially for redirect-based providers.
+- **No further manual action needed on the production PwnZ domain entries.**
+
 ## Firebase Console: manual owner steps
 1. Open Firebase Console (console.firebase.google.com) and select the **same project** already used by Light of Hope. Do not create a second Firebase project.
-2. Under Authentication > Settings > Authorized domains, check/add `pwnz.live`, `www.pwnz.live` and the specific Vercel preview host used in testing. Firebase sign-in provider configuration must already permit the intended account path; enable Email/Password only if you deliberately approve email registration. Do not enable anonymous auth or unreviewed OAuth providers.
+2. **Confirmed:** `pwnz.live`, `www.pwnz.live` and Email/Password are already enabled, no need to add them again. The specific protected Vercel preview host may still need temporary authorization for full browser tests. Do not enable anonymous auth or unreviewed OAuth providers.
 3. Do not paste private keys or API secrets into chat. The public Firebase web configuration has been copied to branch-scoped PwnZ Vercel preview settings; `PWNZ_SOCIAL_BACKEND_ENABLED` is deliberately unset.
 4. **Do not publish the standalone `security/pwnz-social.rules` file.** Instead carefully insert PwnZ helpers and collection matches into the current, deployed Light of Hope Firestore rules, preserving all existing restrictions. Confirm which deployed ruleset is authoritative; `security/v16-production-candidate.rules` is a GitHub candidate, not proof of deployment.
 5. Configure/create the PwnZ composite indexes using `security/pwnz-firestore.indexes.json` in the correct project, without overwriting existing Light of Hope indexes. Verify them READY.
