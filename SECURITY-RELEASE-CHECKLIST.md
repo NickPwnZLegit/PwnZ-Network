@@ -45,3 +45,12 @@ The current branch is based on the production `main` branch (after public PwnZ p
 - The current Messenger browser-side exact-handle search was written for the old public registry and WILL FAIL with these stricter rules. This is intentional fail-closed behavior; do not merge it unchanged as a working member search.
 - Contact discovery must enforce membership eligibility, blocks, response minimization, and avoid revealing private UID mappings. Ordinary public posts might still reveal author UIDs; a full public-facing alias projection is required before claiming complete identity separation.
 - Dedicated Light of Hope backend integration remains pending. No production or Firebase rules have been changed.
+
+## Unified PwnZ V17 UX / account checklist (2026-10-30)
+- Home now presents three large Social, Gaming and Creator doors and an obvious Join / Sign in action.
+- Replaced inactive /profile placeholder with account / edit profile links to PwnZ Social.
+- Social now includes a compact, scrollable PwnZ agreement that must be reaffirmed every 30 days. Its draft Firestore rules require a valid agreement for user writes. Agreement and write permissions must be emulator-tested before deployment.
+- The secure backend flag `PWNZ_SOCIAL_BACKEND_ENABLED` remains deliberately OFF; client pages cannot yet create or read member accounts on the live service.
+- PwnZ handle currently registers as an alias, but **username/password sign-in by handle is NOT implemented**. Email/password and existing Eden-credential sign-in are the only implemented authentication methods. Secure handle lookup requires a server-side resolver and anti-enumeration protections; never use a public email or UID registry.
+- New PwnZ-only member direct messaging is NOT enabled: shared Messenger rules currently require an activated Eden RealID and existing Light of Hope agreement. Member-to-member PwnZ messages need a separate authorization model, abuse controls and server-side contact resolution.
+- Do not merge until Firestore deployed rules are reconciled, emulator-tested for agreement expiry and two-account isolation, member lookup throttled, and real browser account creation/profile edit/posts and messaging pass.
