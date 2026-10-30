@@ -42,12 +42,13 @@ service cloud.firestore {
       allow get: if owner(uid);
       allow list: if false;
       allow create: if owner(uid)
-        && request.resource.data.keys().hasOnly(['uid','handle','handleKey','bio','twitch','youtube','createdAt','updatedAt'])
+        && request.resource.data.keys().hasOnly(['uid','handle','handleKey','role','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.keys().hasAll(['uid','handle','handleKey','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.uid == uid
         && request.resource.data.handle is string
         && request.resource.data.handle.matches('^[a-z][a-z0-9_]{2,23}$')
         && request.resource.data.handleKey == request.resource.data.handle
+        && request.resource.data.role == 'member'
         && request.resource.data.bio == ''
         && request.resource.data.twitch == ''
         && request.resource.data.youtube == ''
@@ -99,6 +100,44 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time;
       allow update: if false;
       allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // PwnZ gamer and game-creator applications: user can apply, never self-approve.
+    match /pwnzRoleApplications/{uid} {
+      allow get: if owner(uid);
+      allow list: if false;
+      allow create: if owner(uid)
+        && profileExists(uid)
+        && request.resource.data.keys().hasOnly(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.roleRequested in ['gamer','game_creator']
+        && textWithin(request.resource.data.summary, 1200)
+        && request.resource.data.summary.size() >= 20
+        && textWithin(request.resource.data.exampleLink, 1024)
+        && request.resource.data.rightsConfirmed is bool
+        && (request.resource.data.roleRequested == 'gamer' || request.resource.data.rightsConfirmed == true)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Private hearts: a member can like/unlike a published post.
+    // A public aggregate count should be served by a trusted projection, never by listing member UIDs.
+    match /pwnzHearts/{id} {
+      allow get: if signedIn() && resource.data.uid == request.auth.uid;
+      allow list: if false;
+      allow create: if signedIn() && profileExists(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['uid','postId','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','postId','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.postId.matches('^[a-zA-Z0-9]{10,50}$')
+        && id == request.resource.data.postId + '__' + request.auth.uid
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
     }
 
     match /pwnzFollows/{id} {
