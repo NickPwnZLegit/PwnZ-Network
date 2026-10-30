@@ -15,6 +15,9 @@ module.exports = function handler(req, res) {
     storageBucket: process.env.PWNZ_FIREBASE_STORAGE_BUCKET || "",
     messagingSenderId: process.env.PWNZ_FIREBASE_MESSAGING_SENDER_ID || ""
   };
-  const ready = ["apiKey", "authDomain", "projectId", "appId"].every(key => Boolean(config[key]));
-  return res.status(200).json({ ready, config: ready ? config : null });
+  const configured = ["apiKey", "authDomain", "projectId", "appId"].every(key => Boolean(config[key]));
+  // Fail closed until cross-network rules, authorized domains, and moderator controls are verified.
+  const enabled = process.env.PWNZ_SOCIAL_BACKEND_ENABLED === 'true';
+  const ready = configured && enabled;
+  return res.status(200).json({ ready, configured, enabled, config: ready ? config : null });
 };
