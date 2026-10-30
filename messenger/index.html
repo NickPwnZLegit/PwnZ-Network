@@ -24,6 +24,7 @@ body{margin:0;min-height:100vh;color:var(--ink);font:16px/1.55 system-ui,sans-se
   <h2 style="margin:0">Your private messages</h2><button type="button" class="btn" id="logout">Sign out</button>
 </div>
 <p class="muted" id="accountName">Connected account</p>
+<div class="notice"><strong>Find a PwnZ member</strong><p class="muted">Enter their exact public PwnZ username. Starting a chat requires both members to have eligible Light of Hope accounts, and existing block permissions still apply.</p><form id="findMember"><label for="memberHandle">PwnZ username</label><div class="row"><input id="memberHandle" placeholder="exact lowercase handle" maxlength="24" pattern="[a-z][a-z0-9_]{2,23}" required><button type="submit" class="btn">Find member</button></div></form><p id="memberResult" role="status" class="muted"></p><button id="startMemberChat" class="btn primary" type="button" hidden>Start secure conversation</button></div>
 <div class="layout">
  <div class="sidebar"><h2>Conversations</h2><div id="threads" aria-label="Your conversations">Loading…</div><p class="muted" style="font-size:.88rem">For now, start new conversations from the existing Light of Hope member directory. They will appear here if both sites share the verified account.</p><a class="btn" href="https://light-of-hope.net/#/messenger">Open Light of Hope inbox ↗</a></div>
  <div><h2 id="chatTitle">Choose a conversation</h2><div class="messages" id="messages" role="log" aria-live="polite">Your message history will appear here.</div>
