@@ -53,17 +53,17 @@
     h3{margin:0 0 8px;font-size:1.16rem;} .card p{color:var(--muted);font-size:.92rem;margin:0;}
     .ecosystem{display:flex;flex-wrap:wrap;gap:11px;margin-top:24px;}
     .ecosystem span{padding:11px 15px;background:rgba(10,47,69,.64);border:1px solid var(--line);border-radius:999px;font-size:.91rem;}
-    .footnote{font-size:.84rem;color:var(--muted);max-width:760px;}
+    .doors{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px;margin:0 0 48px}.door{display:flex;min-height:240px;padding:26px;flex-direction:column;gap:13px;justify-content:space-between;text-decoration:none;border-radius:23px;border:1px solid rgba(125,222,255,.3);background:linear-gradient(150deg,rgba(34,100,146,.44),rgba(10,33,48,.73));box-shadow:inset 0 0 40px rgba(50,133,255,.06);transition:transform .18s}.door:hover,.door:focus-visible{transform:translateY(-4px);border-color:#73ffb9}.door .symbol{font-size:2.5rem}.door strong{font-size:1.65rem;line-height:1.1}.door small{color:var(--muted);font-size:.89rem}.account-strip{border:1px solid rgba(115,255,183,.37);border-radius:18px;padding:24px;margin-bottom:38px;background:rgba(16,75,70,.35);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:18px}.account-strip p{margin:5px 0;color:var(--muted)}.footnote{font-size:.84rem;color:var(--muted);max-width:760px;}
     footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid var(--line);padding:25px 0 39px;color:var(--muted);font-size:.85rem;}
-    @media (max-width:800px){.hero{grid-template-columns:1fr;padding:55px 0 56px;gap:0}.emblem-wrap{max-width:370px;width:100%;margin:auto}.grid{grid-template-columns:1fr}.nav nav{display:none}h1{font-size:clamp(3.5rem,14vw,6rem)}}
+    @media (max-width:800px){.doors{grid-template-columns:1fr}.door{min-height:145px}.hero{grid-template-columns:1fr;padding:55px 0 56px;gap:0}.emblem-wrap{max-width:370px;width:100%;margin:auto}.grid{grid-template-columns:1fr}.nav nav{display:none}h1{font-size:clamp(3.5rem,14vw,6rem)}}
     @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}.button{transition:none}}
   </style>
 </head>
 <body>
   <header class="shell nav">
     <a class="brand" href="#top" aria-label="PwnZ Network home"><span class="mark">P</span><span>PwnZ NETWORK</span></a>
-    <nav aria-label="Primary navigation"><a href="/social/">Social Network</a><a href="/messenger/">Messenger of Light</a><a href="/ecosystem/">PwnZ Token</a><a href="/arena/">PwnZ Arena</a><a href="/community/">Community</a><a href="/live/">Twitch Live</a><a href="/profile/">Profiles</a><a href="#vision">Our vision</a><a href="#ecosystem">Ecosystem</a><a href="https://light-of-hope.net/" rel="noopener noreferrer">Light of Hope ↗</a></nav>
-    <span class="status">In development</span>
+    <nav aria-label="Primary navigation"><a href="/social/">Social Network</a><a href="/messenger/">Messenger of Light</a><a href="/ecosystem/">PwnZ Token</a><a href="/arena/">PwnZ Arena</a><a href="/community/">Community</a><a href="/live/">Twitch Live</a><a href="/profile/">Sign in / Profile</a><a href="#vision">Our vision</a><a href="#ecosystem">Ecosystem</a><a href="https://light-of-hope.net/" rel="noopener noreferrer">Light of Hope ↗</a></nav>
+    <a class="button primary" href="/profile/#account">Sign in / Join PwnZ</a>
   </header>
   <main id="top" class="shell">
     <section class="hero" aria-labelledby="headline">
@@ -72,13 +72,18 @@
         <h1 id="headline">PLAY.<br><span>CREATE.</span><br>CONNECT.</h1>
         <p class="lede">PwnZ Network is the future home for gamers and visual creators inside the interconnected <strong>Light of Hope ecosystem</strong>. A place for creativity, collaboration and community to level up together.</p>
         <div class="cta">
-          <a class="button primary" href="/community/">Explore the PwnZ Network →</a><a class="button secondary" href="#vision">Explore the vision</a>
+          <a class="button primary" href="/profile/#account">Join PwnZ / Sign in →</a><a class="button secondary" href="#vision">Explore the vision</a>
           <a class="button secondary" href="https://light-of-hope.net/" rel="noopener noreferrer">Discover Light of Hope ↗</a>
           <div class="cta" aria-label="Explore PwnZ"><a class="button secondary" href="/live/">📡 Twitch Live</a><a class="button secondary" href="/messenger/">💬 Messenger of Light</a><a class="button secondary" href="/ecosystem/">🪙 PwnZ Token</a><a class="button secondary" href="/arena/">🎮 Arena</a></div>
         </div>
       </div>
       <div class="emblem-wrap" aria-hidden="true"><div class="ring"></div><div class="ring second"></div><div class="ring third"></div><div class="emblem">PwnZ</div><span class="chip">FUTURE NETWORK</span></div>
     </section>
+    <section class="account-strip" aria-label="PwnZ member access"><div><strong>One network. Your own identity.</strong><p>Create your PwnZ gamer name or use your existing Eden account credentials, then build your own profile.</p></div><a class="button primary" href="/profile/#account">Create account / Sign in</a></section>
+    <section aria-label="Explore PwnZ" id="network-doors"><p class="eyebrow">Choose your door</p><h2>Enter the PwnZ Network.</h2><p class="subhead">Social starts here. Watch and discover freely; member posting requires an account and community agreement. Hosted games and paid creator subscriptions launch after approval.</p>
+    <div class="doors"><a class="door" href="/social/"><span class="symbol" aria-hidden="true">🌐</span><strong>Social Network</strong><small>Member profiles · Posts · Hearts · Comments · Connections and Messenger of Light →</small></a>
+    <a class="door" href="/arena/"><span class="symbol" aria-hidden="true">🎮</span><strong>Gaming Arena</strong><small>Game discovery · Future legally approved browser games · Multiplayer · Tournaments →</small></a>
+    <a class="door" href="/community/"><span class="symbol" aria-hidden="true">🎥</span><strong>Creator Network</strong><small>Twitch and YouTube · Gamer and Game Creator applications · Future subscriptions →</small></a></div></section>
     <section class="section" id="vision">
       <p class="eyebrow">The next level</p><h2>More than a gaming platform.</h2>
       <p class="subhead">PwnZ is being designed as a connected creative corner of the Light of Hope universe. These are future goals, not live features.</p>
