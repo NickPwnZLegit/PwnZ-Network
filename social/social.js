@@ -255,17 +255,26 @@ $("compose").addEventListener("submit",async e=>{
 $("role-application").addEventListener("submit",async e=>{
  e.preventDefault();if(!state.user||!state.profile)return;
  const roleRequested=$("role-request").value;
- const summary=$("role-summary").value.trim();
- const exampleLink=$("role-example").value.trim();
- const rightsConfirmed=$("role-rights").checked;
- if(!["gamer","game_creator"].includes(roleRequested)||summary.length<20||summary.length>1200){notice("Choose a role and enter at least 20 characters.");return;}
- if(roleRequested==="game_creator"&&!rightsConfirmed){notice("Game creators must confirm that their submitted work and assets are authorized.");return;}
- if(exampleLink){try{const u=new URL(exampleLink);if(u.protocol!=="https:")throw 0;}catch{notice("Provide a valid HTTPS link or leave it blank.");return;}}
- const button=$("role-submit");button.disabled=true;
+ const category=({gamer:"pwnz-gamer",game_creator:"pwnz-game-creator",original_game:"pwnz-original-game"})[roleRequested];
+ const summary=$("role-summary").value.trim(),favoriteGames=$("role-favorite").value.trim();
+ const uploadGames=$("role-upload").value.trim(),method=$("role-method").value;
+ const eventIdeas=$("role-events").value.trim(),accessModel=$("role-access").value;
+ const exampleLink=$("role-example").value.trim(),rightsConfirmed=$("role-rights").checked;
+ if(!category||summary.length<20||!favoriteGames){notice("Complete your category and favorite games.");return;}
+ if(roleRequested!=="gamer"&&!rightsConfirmed){notice("Game publishers must confirm they have rights to distribute all code and assets.");return;}
+ if(exampleLink){try{const u=new URL(exampleLink);if(u.protocol!=="https:")throw 0;}catch{notice("Use an HTTPS portfolio link.");return;}}
+ const submit=$("role-submit");submit.disabled=true;
  try{
-  await setDoc(doc(state.db,"pwnzRoleApplications",state.user.uid),{uid:state.user.uid,roleRequested,summary,exampleLink,rightsConfirmed,status:"pending",createdAt:serverTimestamp()});
-  $("role-application").reset();notice("Your application was submitted for review. Your role remains PwnZ Member until approved.");
- }catch(error){notice("Unable to submit application: "+error.message);}
- finally{button.disabled=false;}
+  const token=await state.user.getIdToken();
+  const response=await fetch("https://light-of-hope.net/api/community-registration",{
+    method:"POST",headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+    body:JSON.stringify({category,organizationName:state.profile.handle,purpose:summary,communityImpact:"Creating and supporting an interactive PwnZ gaming community",role:roleRequested,website:exampleLink,socialLinks:[],answers:{favoriteGames,contentPlan:summary,uploadGames,method,eventIdeas,accessModel,rightsConfirmed:rightsConfirmed?"yes":"no"}})
+  });
+  const result=await response.json().catch(()=>({}));
+  if(!response.ok)throw Error(result.error||"Application service unavailable.");
+  $("role-application").reset();notice("Application saved for administrator review. Email notification status: "+(result.notificationStatus||"unknown")+". Your role remains PwnZ Member.");
+ }catch(error){notice("Application not submitted: "+error.message+". An activated Eden RealID is required for this shared application route.");}
+ finally{submit.disabled=false;}
 });
+
 init();
