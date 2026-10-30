@@ -38,3 +38,14 @@ Open-source code licenses do not automatically grant commercial rights to a game
 - **Permissions:** public viewers can watch Twitch/YouTube and browse PwnZ profiles/content without Arena subscriptions. Posting, commenting, tipping and uploads require a signed-in account and applicable safeguards. Gameplay and tournament entry require an active, server-verified Arena subscription. Winning/claiming prizes has independent event-specific checks.
 - **Network switcher:** PwnZ ↔ light-of-hope.net site links available in navigation now; seamless authenticated switching follows SSO integration.
 - **Status:** pages are design/integration foundations, not a working social backend or verified identity registration.
+
+## Social TestNet implementation, October 30, 2026
+- `/social/` contains Firebase client auth sign-in/registration, unique PwnZ handle transactions, PwnZ profile bio and streaming links, Firestore public posts, YouTube or Twitch link attachments, comments, follows and post deletion.
+- `/api/pwnz-config` supplies public Firebase Web SDK config when deployed environment variables are set. Set PWNZ_FIREBASE_API_KEY, PWNZ_FIREBASE_AUTH_DOMAIN, PWNZ_FIREBASE_PROJECT_ID, PWNZ_FIREBASE_APP_ID (optional STORAGE_BUCKET and MESSAGING_SENDER_ID) on the PwnZ Vercel project. Do not use Firebase Admin credentials in web config.
+- `security/pwnz-social.rules` is a **rules candidate only** and is not deployed. It is written as a standalone ruleset; merge its collection match blocks into the existing Light of Hope Firebase rules if using the same project. Never replace Light of Hope's rules wholesale.
+- Authentication identities may share a Firebase project with Light of Hope **only after** confirming domain allowlists, project credentials, account sharing consent, and that rules cover both apps. A new PwnZ-created Firebase account is not the same as a verified activated Eden RealID. Cross-site single sign-on and RealID linking remain separate work.
+- Firestore compound indexes required: pwnzPosts(status ASC, createdAt DESC); pwnzComments(postId ASC, createdAt ASC). Verify index and rules in emulator before launch.
+- Public profile documents currently contain only PwnZ-specific display information. Do not add an Eden RealID public field, private user contact details or wallet proof.
+- IMPORTANT: TestNet moderation needs reporting, block controls, automated abuse defenses, retention policy, and a restricted signup plan before broad public launch. Do not mistake CRUD foundations for moderation-ready social launch.
+- Twitch embedding is simple and already in `/live/`; third-party stream hosting stays on Twitch. PwnZ does not ingest streams.
+- Next milestone: integrate moderation and owner-only media upload pipeline before public production, then direct messages and notifications. Membership-gated gaming is later.
