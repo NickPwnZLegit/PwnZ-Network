@@ -53,7 +53,7 @@ function renderThreads(){
  });
 }
 function selectThread(id,peer){
- if(!state.gate||!state.user||!state.threads.some(t=>t.id===id&&(t.participants||[]).includes(state.user.uid)))return;
+ if(!state.gate||!state.user||!(state.threads.some(t=>t.id===id&&(t.participants||[]).includes(state.user.uid)) || (foundMemberUid===peer && [state.user.uid,peer].sort().join("__")===id)))return;
  if(state.unsubMessages){state.unsubMessages();state.unsubMessages=null;}
  state.selected=id;el("chatTitle").textContent="Light Member conversation";el("messages").textContent="Loading messages…";
  el("sendForm").hidden=false;el("report").hidden=false;renderThreads();
