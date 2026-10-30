@@ -101,7 +101,8 @@ service cloud.firestore {
         && request.resource.data.youtube == ''
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/pwnzHandles/$(request.resource.data.handleKey)).data.uid == uid;
+        && getAfter(/databases/$(database)/documents/pwnzHandles/$(request.resource.data.handleKey)).data.uid == uid
+        && getAfter(/databases/$(database)/documents/pwnzPublicProfiles/$(uid)).data.handle == request.resource.data.handle;
       allow update: if owner(uid) && agreementCurrent()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio','twitch','youtube','updatedAt'])
         && textWithin(request.resource.data.bio, 300)
@@ -111,10 +112,33 @@ service cloud.firestore {
           request.resource.data.youtube == '' ||
           request.resource.data.youtube.matches('^https://(www[.])?(youtube[.]com|youtu[.]be)/.*$')
         )
-        && request.resource.data.updatedAt == request.time;
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/pwnzPublicProfiles/$(uid)).data.bio == request.resource.data.bio;
       allow delete: if false;
     }
 
+
+    // Public gamer cards contain no email, Eden owner data or wallet addresses.
+    match /pwnzPublicProfiles/{uid} {
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 25;
+      allow create: if owner(uid) && agreementCurrent()
+        && request.resource.data.keys().hasOnly(['uid','handle','bio','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','handle','bio','createdAt','updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.handle is string
+        && request.resource.data.handle.matches('^[a-z][a-z0-9_]{2,23}$')
+        && request.resource.data.bio == ''
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/pwnzProfiles/$(uid)).data.handle == request.resource.data.handle;
+      allow update: if owner(uid) && agreementCurrent()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio','updatedAt'])
+        && textWithin(request.resource.data.bio,300)
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/pwnzProfiles/$(uid)).data.bio == request.resource.data.bio;
+      allow delete: if false;
+    }
     match /pwnzPosts/{postId} {
       allow read: if resource.data.status == 'published';
       allow create: if agreementCurrent()
