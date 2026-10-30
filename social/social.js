@@ -259,6 +259,7 @@ $("reserve").addEventListener("click",async()=>{
    if(taken.exists()||already.exists())throw new Error("That name is unavailable or you already have a profile.");
    tx.set(ref,{uid:state.user.uid,handle,createdAt:serverTimestamp()});
    tx.set(profile,{uid:state.user.uid,handle,handleKey:key,role:"member",bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+   tx.set(doc(state.db,"pwnzPublicProfiles",state.user.uid),{uid:state.user.uid,handle,bio:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   });
   await loadProfile();await refreshBadgeProgress();renderSession();notice("PwnZ profile created! PwnZ Member badge unlocked.");
  }catch(e){notice("Name registration failed: "+e.message);}finally{$("reserve").disabled=false;}
@@ -269,7 +270,7 @@ $("profile-form").addEventListener("submit",async e=>{
  if(bio.length>300){notice("Bio is too long.");return;}
  if($("twitch").value.trim()&&!twitch){notice("Enter a valid Twitch channel name.");return;}
  if(youtube){try{const u=new URL(youtube);if(u.protocol!=="https:"||!["youtube.com","www.youtube.com","youtu.be"].includes(u.hostname))throw 0;}catch{notice("Only HTTPS YouTube links are supported.");return;}}
- try{await setDoc(doc(state.db,"pwnzProfiles",state.user.uid),{bio,twitch,youtube,updatedAt:serverTimestamp()},{merge:true});await loadProfile();renderBadges();notice("Public PwnZ profile updated.");}
+ try{await runTransaction(state.db,async tx=>{const own=doc(state.db,"pwnzProfiles",state.user.uid),pub=doc(state.db,"pwnzPublicProfiles",state.user.uid);await Promise.all([tx.get(own),tx.get(pub)]);tx.update(own,{bio,twitch,youtube,updatedAt:serverTimestamp()});tx.update(pub,{bio,updatedAt:serverTimestamp()});});await loadProfile();renderBadges();notice("Public PwnZ profile updated.");}
  catch(e){notice("Profile save failed: "+e.message);}
 });
 $("compose").addEventListener("submit",async e=>{
