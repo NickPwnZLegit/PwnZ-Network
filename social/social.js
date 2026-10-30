@@ -27,7 +27,7 @@ async function init(){
      await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus(),loadAgreement()]);
      await refreshBadgeProgress();
    }
-   state.agreementCurrent=state.verifiedEden||state.agreementCurrent;
+   state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
    renderSession(); watchPosts();
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
@@ -35,11 +35,11 @@ async function init(){
 async function loadAgreement(){
  try{const record=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
   const a=record.exists()?record.data():{};
-  state.agreementCurrent=state.verifiedEden||a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now();
+  state.agreementCurrent=state.edenActive ? state.verifiedEden : (a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now());
  }catch(e){state.agreementCurrent=false;notice("Agreement permission check unavailable. Community posting remains locked.");}
 }
 $("agree-submit").addEventListener("click",async()=>{
- if(!state.user||!state.db||!$("agree-check").checked){$("agree-status").textContent="Please read and check the agreement first.";return;}
+ if(!state.user||!state.db||state.edenActive||!$("agree-check").checked){$("agree-status").textContent="Please read and check the agreement first.";return;}
  const btn=$("agree-submit");btn.disabled=true;
  try{
   const now=Date.now();
@@ -144,7 +144,7 @@ document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("c
 $("recheck-eden").addEventListener("click",async()=>{
  if(!state.user)return;
  await checkEdenStatus();state.agreementCurrent=state.verifiedEden;await loadAgreement();
- state.agreementCurrent=state.verifiedEden||state.agreementCurrent;renderSession();
+ state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;renderSession();
 });
 chooseAuthMode("pwnz");
 async function loadFollowing(){
