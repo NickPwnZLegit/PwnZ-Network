@@ -24,3 +24,17 @@
 
 ## Security and licensing
 Open-source code licenses do not automatically grant commercial rights to a game's names, levels, music, audiovisual assets, trademarks or proprietary builds. Do not copy/distribute Halo assets or charge for them without appropriate rights. Blockchain does not replace the simulation or graphics engine.
+
+
+## Expanded social network requirements (October 30, 2026)
+- **Distinct identities:** PwnZ profile name is a separately reserved, unique public gamer/creator handle. Eden RealID stays the underlying private Light of Hope ecosystem credential. Do not expose identifiers, wallet credentials or face/thumbprint data across sites by default. Cross-network visibility is opt-in.
+- **Cross-site login:** Implement secure shared SSO authorization (for example OpenID Connect Authorization Code + PKCE), scoped audiences and secure token handling. Never pass raw authentication tokens or a biometric proof in query strings.
+- **PwnZ profiles:** avatars, profile bios, uploaded/link media, Twitch/YouTube channel associations, stats, posts, followers and moderation. Require channel ownership verification before marking accounts as verified.
+- **Livestreams:** /live/ provides a working Twitch channel embed with valid hostname parent, optional chat embed and shareable channel link. Embeds are subject to Twitch availability, supported browsers and broadcaster settings. Streaming remains on Twitch; PwnZ does not ingest or rebroadcast copyrighted streams.
+- **YouTube:** /community/ offers an actual in-browser preview of supported YouTube links using youtube-nocookie.com. The preview does not persist content.
+- **Uploads:** direct-to-object-storage signed uploads with size limits, quotas, transcoding, virus/content review, rights complaints, access controls and retention policies.
+- **Community posting:** server-owned post/comment/media records; authenticated users can create or modify only their own posts. Support reporting and moderation workflows, pagination, timestamps, audit logs and anti-spam rate limits.
+- **Donations:** creator support is optional and distinct from monthly Arena membership. Requires processor authorization, supported payout regions, ledger, receipts, refunds, compliance and abuse review before enabling transfers.
+- **Permissions:** public viewers can watch Twitch/YouTube and browse PwnZ profiles/content without Arena subscriptions. Posting, commenting, tipping and uploads require a signed-in account and applicable safeguards. Gameplay and tournament entry require an active, server-verified Arena subscription. Winning/claiming prizes has independent event-specific checks.
+- **Network switcher:** PwnZ ↔ light-of-hope.net site links available in navigation now; seamless authenticated switching follows SSO integration.
+- **Status:** pages are design/integration foundations, not a working social backend or verified identity registration.
