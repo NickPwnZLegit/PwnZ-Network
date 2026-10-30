@@ -38,3 +38,10 @@ Status: PREVIEW ONLY. Not safe to merge to production until conditions below pas
 
 ## Repository handling
 The current branch is based on the production `main` branch (after public PwnZ preview release) rather than the old conflicting PR #2. All Social+Messenger code is together. Do NOT merge the old PR #2 separately.
+
+## Security update: private handle registry (2026-10-30)
+- PwnZ draft Firestore rules now restrict reads of `pwnzProfiles/{uid}` to the owner and forbid profile listing.
+- Handle registry reads are no longer public directory reads. Contact lookup through the browser must remain disabled until an authenticated, rate-limited trusted service has been implemented and tested.
+- The current Messenger browser-side exact-handle search was written for the old public registry and WILL FAIL with these stricter rules. This is intentional fail-closed behavior; do not merge it unchanged as a working member search.
+- Contact discovery must enforce membership eligibility, blocks, response minimization, and avoid revealing private UID mappings. Ordinary public posts might still reveal author UIDs; a full public-facing alias projection is required before claiming complete identity separation.
+- Dedicated Light of Hope backend integration remains pending. No production or Firebase rules have been changed.
