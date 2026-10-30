@@ -2,7 +2,7 @@
 // This client never changes membership rules, creates an identity, or grants access.
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
 import { getAuth,onAuthStateChanged,signInWithEmailAndPassword,signOut } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
-import { getFirestore,collection,doc,getDoc,addDoc,onSnapshot,query,where,orderBy,limit,serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
+import { getFirestore,collection,doc,getDoc,setDoc,addDoc,onSnapshot,query,where,orderBy,limit,serverTimestamp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore.js";
 const el=id=>document.getElementById(id);
 const state={auth:null,db:null,user:null,unsubThreads:null,unsubMessages:null,threads:[],selected:null,gate:false,sessionNonce:0};
 function status(s){el("status").textContent=s;}
@@ -71,6 +71,46 @@ function selectThread(id,peer){
   box.scrollTop=box.scrollHeight;
  },e=>status("Messages unavailable: "+e.message));
 }
+let foundMemberUid=null;
+el("findMember").addEventListener("submit",async e=>{
+ e.preventDefault();foundMemberUid=null;el("startMemberChat").hidden=true;
+ if(!state.gate||!state.user){el("memberResult").textContent="Verified Light of Hope sign-in required.";return;}
+ const handle=el("memberHandle").value.trim();
+ if(!/^[a-z][a-z0-9_]{2,23}$/.test(handle)){el("memberResult").textContent="Enter an exact valid PwnZ handle.";return;}
+ try{
+  const record=await getDoc(doc(state.db,"pwnzHandles",handle));
+  if(!record.exists()){el("memberResult").textContent="No profile found with that handle.";return;}
+  const uid=record.data().uid;
+  if(!uid||uid===state.user.uid){el("memberResult").textContent="Choose another member.";return;}
+  // Do not expose uid to UI. Both members must have activated Eden identities;
+  // Firestore rules remain the authoritative gate for conversation creation.
+  const profile=await getDoc(doc(state.db,"pwnzProfiles",uid));
+  if(!profile.exists()||profile.data().handle!==handle){
+    el("memberResult").textContent="Profile is not available.";return;
+  }
+  foundMemberUid=uid;
+  el("memberResult").textContent="@"+handle+" found. Conversation access is checked on creation.";
+  el("startMemberChat").hidden=false;
+ }catch(error){el("memberResult").textContent="Member search unavailable: "+error.message;}
+});
+el("startMemberChat").addEventListener("click",async()=>{
+ if(!state.gate||!state.user||!foundMemberUid)return;
+ const peer=foundMemberUid,participants=[state.user.uid,peer].sort(),id=participants.join("__");
+ const button=el("startMemberChat");button.disabled=true;
+ try{
+  const existing=await getDoc(doc(state.db,"lightConversations",id));
+  if(!existing.exists()){
+    await setDoc(doc(state.db,"lightConversations",id),{
+      participants,type:"direct",createdAt:serverTimestamp(),lastMessageAt:serverTimestamp()
+    });
+  }
+  const record=await getDoc(doc(state.db,"lightConversations",id));
+  if(!record.exists()||!record.data().participants?.includes(state.user.uid))throw Error("Access not authorized.");
+  status("Conversation opened. Light of Hope permissions remain enforced.");
+  selectThread(id,peer);
+ }catch(error){status("Unable to start conversation: "+error.message+" Check verified member eligibility and block permissions.");}
+ finally{button.disabled=false;}
+});
 el("sendForm").addEventListener("submit",async e=>{
  e.preventDefault();const id=state.selected,uid=state.user?.uid,body=el("draft").value.trim();
  if(!state.gate||!id||!uid||!body)return;
