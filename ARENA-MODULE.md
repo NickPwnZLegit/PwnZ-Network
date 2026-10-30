@@ -66,3 +66,11 @@ Open-source code licenses do not automatically grant commercial rights to a game
 - Firebase initialization has been normalized to the default app instance for both PwnZ pages, allowing authentication persistence on the same PwnZ domain when using the same configured Firebase project. It does **not** provide seamless cross-domain login or SSO.
 - Do not deploy PwnZ standalone Firestore rules over Light of Hope rules. Merge collection matches and run emulator tests with two valid members, a PwnZ-only account, blocked contact, expired agreement, guest, and spoofed author.
 - Identity and messenger integration remains a gated preview pending authorized domain configuration, merged rules, safe member discovery and moderation. Current browser checks are not replacements for server-enforced rules.
+
+## Combined Social + Messenger release gate (2026-10-30)
+- Scoped six **public client Firebase settings** to PwnZ's integration **preview branch only**, retrieved from the existing Light of Hope Vercel project's public VITE_FIREBASE configuration. Never copy Admin SDK or private credentials.
+- Added a server-side configuration gate: `PWNZ_SOCIAL_BACKEND_ENABLED=true` is required for the PwnZ endpoint to return client configuration. It is **unset**, so logins, posting and messaging on PwnZ remain unavailable.
+- Basic static route and source-marker checks succeeded for social profiles, posts, comments, follows, badges, exact-handle contact lookup, shared `lightConversations` and reporting.
+- Vercel reports a READY preview deployment, but this is a **build status**, not proof that Firestore rules, authorized domains, login, cross-network messaging or moderator functionality work.
+- **Before enabling/merging the combined PR:** (1) merge PwnZ rules into the existing Light of Hope rules without replacing them, (2) deploy indexes, (3) configure authorized domains, (4) run Firebase emulator guest/new account/verified Eden/two-member/blocked-member/expired agreement/impersonation tests, (5) add user reporting, blocks and moderation, (6) browser-test both websites and Messenger, (7) enable only after approval.
+- Do not merge code that exposes open registration to real verified Light of Hope Firebase user data before these checks pass.
