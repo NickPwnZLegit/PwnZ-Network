@@ -1,7 +1,7 @@
 # PwnZ.live Network
 ## Foundational Whitepaper v0.1 · October 30, 2026
 
-**Status:** Draft proposal. Platform architecture, game rights, subscription prices, token utilities, release dates, and reward mechanics remain subject to testing and approval.
+**Status:** Draft proposal. Application emails and payments are not operational until the relevant provider and security integration is deployed.  Platform architecture, game rights, subscription prices, token utilities, release dates, and reward mechanics remain subject to testing and approval.
 
 ### 1. Mission
 PwnZ.live is a browser-first gaming and creator network intended to unite classic-style multiplayer experiences, legal game preservation and creator publishing, interactive livestreams and community discussion. Connected to the Light of Hope ecosystem's empathy-first philosophy, it aims to let people connect, play, create and support each other without requiring crypto ownership simply to socialize.
@@ -17,6 +17,16 @@ PwnZ provides distinct gamer and creator usernames that do not have to match an 
 **Game Creator (application and approval):** A member who develops or legally ports game software submits a description, source/rights evidence, game-content licenses, test builds and required technical/security documentation. Approval is required for hosting, distributing, enabling paid play or opening matchmaking. Old source code alone never grants rights to original artwork, maps, audio, names or other protected game assets. Approval is revocable.
 
 These are roles and privileges, not separate mandatory identity accounts. Users may later hold more than one approved role subject to the final policy.
+
+
+### 3.1 Application questionnaires and approvals
+All applicants retain baseline PwnZ Member permissions until an authorized reviewer approves the requested creator category. Approved roles may be granted in addition to the default Member role. A structured application goes into Light of Hope's shared administration queue, with a server-generated notification intended for **lightofhopelegit@gmail.com**. A successfully saved application is never contingent on email delivery, and email replies do not grant privileges. The applicant must be authenticated and either have an activated Eden identity or a verified PwnZ account.
+
+- **PwnZ Gamer application:** favorite games and genres; channels and platforms; whether they plan to use Twitch, YouTube links, original video uploads or multiple methods; the games they plan to feature; sample videos; stream schedule; what they hope to bring to the community; and whether fan memberships would be useful.
+- **Game Creator application:** game titles, original-versus-licensed status, ownership of code and *separately* audiovisual assets; technical build/hosting format; proposed multiplayer and tournaments; tournament prizes and eligibility considerations; proposed free, small-fee or monthly subscription access; rights declarations and samples.
+- **Original Game Developer application:** name and genre of a personally developed game; proof of authorship; planned updates and publishing format; content rating considerations; and whether access should be free, tip-supported, a small access fee or an optional membership.
+
+Creator applications must never run arbitrary uploaded code on production servers. Human review, sandbox security scanning, legal permission for game media, and content moderation are separate mandatory checks.
 
 ### 4. Social foundation and discovery
 PwnZ profiles may contain an avatar, gamer bio, approved streaming channels, video links, authored posts and activity badges. The social network should provide public creator profiles, Members of PwnZ connections, follow/add member workflows, a chronological feed, comment threads, hearts, moderation reports and notifications. The connection graph must not make private Eden RealID metadata public. Future Alliance-style groups and communities can carry friends, creator circles, game communities and tournaments.
@@ -46,7 +56,7 @@ An empathy-first community still requires enforceable rules: anti-harassment, co
 **Phase D: Tournaments and Interoperability.** Competition systems, vetted prizes, cross-network features and explicitly approved token utilities/pools.
 
 ### 11. Open decisions
-Subscription price and billing model; whether fans subscribe per creator or to a network bundle; game creator revenue shares; approved game platforms and technical standards; PwnZ token chain, address and supply; global launch jurisdictions; moderator staffing; age limits; eligibility for donations and tournament rewards; and governance of game approvals.
+Admin email transport configuration and applicant review workflow; subscription price and billing model; whether fans subscribe per creator or to a network bundle; game creator revenue shares; approved game platforms and technical standards; PwnZ token chain, address and supply; global launch jurisdictions; moderator staffing; age limits; eligibility for donations and tournament rewards; and governance of game approvals.
 
 ### 12. Foundational principle
 PwnZ makes social belonging the entrance, creative contribution the engine and gaming competition a future destination. Its Light of Hope connection should expand empathy, transparency and accessibility, rather than requiring anyone to invest or buy a token to participate.
