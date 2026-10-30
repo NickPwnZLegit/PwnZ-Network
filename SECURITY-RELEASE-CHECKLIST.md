@@ -62,3 +62,10 @@ The current branch is based on the production `main` branch (after public PwnZ p
 - Existing Eden users whose Light of Hope agreement has expired are directed to renew there; they cannot bypass it by signing a PwnZ-only agreement. All relevant write rules mirror this distinction.
 - Before any release: combine the PwnZ candidate rules into the authoritative deployed Light of Hope Firebase rules, deploy composite indexes, emulator-test verified Eden/pure PwnZ/expired agreements, and provision controlled Firebase preview access. This GitHub rules file is not the deployed ruleset.
 - PwnZ member-to-member messenger remains gated pending robust verified member directory, consent/block controls and appropriate rules for PwnZ-only accounts.
+
+## Shared rules reconciliation (2026-10-30)
+- PwnZ collections are now merged into `NickPwnZLegit/Light-of-hope-site` PR #41 candidate `security/v16-production-candidate.rules` without deleting existing LoH matches.
+- Combined composite indexes staged in `security/v16-firestore-indexes.json`; this is not a live Firebase deployment.
+- Added `security/pwnz-reconciled-firestore.test.mjs` and a Firebase emulator workflow job to verify PwnZ-only signup, Eden agreement inheritance, expired agreement bypass prevention, private profile isolation, post authorization and existing LoH message isolation.
+- Fixed unclaimed handle checks and bounded 30-day PwnZ agreement validity.
+- This phase does NOT yet enable PwnZ-only Messenger, public member search, or production social writes; those require further rules, consent/block enforcement, threat tests and explicit Firebase activation.
