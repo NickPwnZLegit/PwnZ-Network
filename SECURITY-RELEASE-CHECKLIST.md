@@ -54,3 +54,11 @@ The current branch is based on the production `main` branch (after public PwnZ p
 - PwnZ handle currently registers as an alias, but **username/password sign-in by handle is NOT implemented**. Email/password and existing Eden-credential sign-in are the only implemented authentication methods. Secure handle lookup requires a server-side resolver and anti-enumeration protections; never use a public email or UID registry.
 - New PwnZ-only member direct messaging is NOT enabled: shared Messenger rules currently require an activated Eden RealID and existing Light of Hope agreement. Member-to-member PwnZ messages need a separate authorization model, abuse controls and server-side contact resolution.
 - Do not merge until Firestore deployed rules are reconciled, emulator-tested for agreement expiry and two-account isolation, member lookup throttled, and real browser account creation/profile edit/posts and messaging pass.
+
+## Two-path account policy finalized 2026-10-30
+- Email/password only. Distinct visible choices: New/returning PwnZ Member, or Existing Eden RealID member. Both authenticate through the same underlying Firebase project. PwnZ handle is a public identity, not a login credential.
+- Firebase browser auth persistence keeps a normal signed-in session until explicit signout or platform session invalidation; every 30-day agreement renewal gates community writes without deleting the login or account.
+- PwnZ-only members sign the PwnZ 30-day agreement. Verified Eden RealID account owners with an active Light of Hope V16 agreement automatically qualify and must not sign a duplicate PwnZ agreement.
+- Existing Eden users whose Light of Hope agreement has expired are directed to renew there; they cannot bypass it by signing a PwnZ-only agreement. All relevant write rules mirror this distinction.
+- Before any release: combine the PwnZ candidate rules into the authoritative deployed Light of Hope Firebase rules, deploy composite indexes, emulator-test verified Eden/pure PwnZ/expired agreements, and provision controlled Firebase preview access. This GitHub rules file is not the deployed ruleset.
+- PwnZ member-to-member messenger remains gated pending robust verified member directory, consent/block controls and appropriate rules for PwnZ-only accounts.
