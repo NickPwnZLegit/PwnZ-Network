@@ -158,6 +158,21 @@ function renderPosts(){
   const comment=document.createElement("button");comment.type="button";comment.className="mini";comment.textContent="Comments";
   const commentsBox=document.createElement("div");commentsBox.hidden=true;commentsBox.className="comment-box";
   comment.addEventListener("click",()=>{commentsBox.hidden=!commentsBox.hidden;if(!commentsBox.hidden)loadComments(post.id,commentsBox);});
+  if(state.user&&state.profile){
+   const heart=document.createElement("button");heart.type="button";heart.className="mini";heart.textContent="♡ Heart";
+   heart.setAttribute("aria-label","Toggle heart for this post");
+   const likeRef=doc(state.db,"pwnzHearts",post.id+"__"+state.user.uid);
+   getDoc(likeRef).then(snap=>{if(heart.isConnected)heart.textContent=snap.exists()?"♥ Hearted":"♡ Heart";}).catch(()=>{});
+   heart.addEventListener("click",async()=>{
+    heart.disabled=true;
+    try{const current=await getDoc(likeRef);
+     if(current.exists()){await deleteDoc(likeRef);heart.textContent="♡ Heart";}
+     else{await setDoc(likeRef,{uid:state.user.uid,postId:post.id,createdAt:serverTimestamp()});heart.textContent="♥ Heart";}
+    }catch(error){notice("Heart unavailable: "+error.message);}
+    finally{heart.disabled=false;}
+   });
+   actions.append(heart);
+  }
   actions.append(comment);
   if(state.user?.uid===post.authorUid){const del=document.createElement("button");del.type="button";del.className="mini";del.textContent="Delete";del.addEventListener("click",async()=>{if(!confirm("Delete your post?"))return;try{await deleteDoc(doc(state.db,"pwnzPosts",post.id));await refreshBadgeProgress();notice("Post deleted.");}catch(e){notice(e.message);}});actions.append(del);}
   card.append(actions,commentsBox);host.append(card);
