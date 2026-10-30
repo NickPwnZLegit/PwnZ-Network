@@ -101,7 +101,7 @@ el("logout").addEventListener("click",async()=>{if(state.auth)await signOut(stat
   if(!res.ok)throw Error("Configuration not available");
   const data=await res.json();
   if(!data.ready||!data.config){status("Messenger preview is available, but shared Firebase configuration is not connected. Open your existing inbox on Light of Hope.");return;}
-  const app=initializeApp(data.config,"pwnz-messenger");
+  const app=initializeApp(data.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   onAuthStateChanged(state.auth,async user=>{
    const nonce=++state.sessionNonce;reset();state.user=user;
