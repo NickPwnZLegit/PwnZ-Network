@@ -40,20 +40,15 @@ function renderThreads(){
   const peer=(t.participants||[]).find(u=>u!==state.user.uid);
   if(!peer)return;
   const button=document.createElement("button");
-  button.type="button";button.className="thread";button.textContent="Light Member · "+peer.slice(0,5)+"…";
+  button.type="button";button.className="thread";button.textContent="Light Member";
   button.setAttribute("aria-current",String(state.selected===t.id));
   button.addEventListener("click",()=>selectThread(t.id,peer));
   container.appendChild(button);
-  // Only a PwnZ public alias is shown when it exists. Private Eden RealID is never read for peers.
-  getDoc(doc(state.db,"pwnzProfiles",peer)).then(p=>{
-   if(!button.isConnected)return;
-   if(p.exists()&&typeof p.data().handle==="string")button.textContent="@"+p.data().handle;
-   else button.textContent="Light Member";
-  }).catch(()=>{button.textContent="Light Member";});
+
  });
 }
 function selectThread(id,peer){
- if(!state.gate||!state.user||!(state.threads.some(t=>t.id===id&&(t.participants||[]).includes(state.user.uid)) || (foundMemberUid===peer && [state.user.uid,peer].sort().join("__")===id)))return;
+ if(!state.gate||!state.user||!(state.threads.some(t=>t.id===id&&(t.participants||[]).includes(state.user.uid))))return;
  if(state.unsubMessages){state.unsubMessages();state.unsubMessages=null;}
  state.selected=id;el("chatTitle").textContent="Light Member conversation";el("messages").textContent="Loading messages…";
  el("sendForm").hidden=false;el("report").hidden=false;renderThreads();
@@ -71,44 +66,34 @@ function selectThread(id,peer){
   box.scrollTop=box.scrollHeight;
  },e=>status("Messages unavailable: "+e.message));
 }
-let foundMemberUid=null;
+let foundMemberHandle=null;
+async function contactRequest(action,handle){
+ const token=await state.user.getIdToken();
+ const response=await fetch("https://light-of-hope.net/api/alliance-membership?mode=pwnz-contact",{
+  method:"POST",mode:"cors",cache:"no-store",
+  headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+  body:JSON.stringify({action,handle})
+ });
+ if(!response.ok)throw new Error("Contact unavailable or not eligible.");
+ return response.json();
+}
 el("findMember").addEventListener("submit",async e=>{
- e.preventDefault();foundMemberUid=null;el("startMemberChat").hidden=true;
- if(!state.gate||!state.user){el("memberResult").textContent="Verified Light of Hope sign-in required.";return;}
+ e.preventDefault();foundMemberHandle=null;el("startMemberChat").hidden=true;
+ if(!state.gate||!state.user)return;
  const handle=el("memberHandle").value.trim();
- if(!/^[a-z][a-z0-9_]{2,23}$/.test(handle)){el("memberResult").textContent="Enter an exact valid PwnZ handle.";return;}
+ if(!/^[a-z][a-z0-9_]{2,23}$/.test(handle))return;
  try{
-  const record=await getDoc(doc(state.db,"pwnzHandles",handle));
-  if(!record.exists()){el("memberResult").textContent="No profile found with that handle.";return;}
-  const uid=record.data().uid;
-  if(!uid||uid===state.user.uid){el("memberResult").textContent="Choose another member.";return;}
-  // Do not expose uid to UI. Both members must have activated Eden identities;
-  // Firestore rules remain the authoritative gate for conversation creation.
-  const profile=await getDoc(doc(state.db,"pwnzProfiles",uid));
-  if(!profile.exists()||profile.data().handle!==handle){
-    el("memberResult").textContent="Profile is not available.";return;
-  }
-  foundMemberUid=uid;
-  el("memberResult").textContent="@"+handle+" found. Conversation access is checked on creation.";
-  el("startMemberChat").hidden=false;
- }catch(error){el("memberResult").textContent="Member search unavailable: "+error.message;}
+  const result=await contactRequest("find",handle);
+  if(result.found){foundMemberHandle=handle;el("memberResult").textContent="@"+handle+" is available for messaging.";el("startMemberChat").hidden=false;}
+ }catch(error){el("memberResult").textContent="Member not available for messaging.";}
 });
 el("startMemberChat").addEventListener("click",async()=>{
- if(!state.gate||!state.user||!foundMemberUid)return;
- const peer=foundMemberUid,participants=[state.user.uid,peer].sort(),id=participants.join("__");
+ if(!state.gate||!foundMemberHandle)return;
  const button=el("startMemberChat");button.disabled=true;
  try{
-  const existing=await getDoc(doc(state.db,"lightConversations",id));
-  if(!existing.exists()){
-    await setDoc(doc(state.db,"lightConversations",id),{
-      participants,type:"direct",createdAt:serverTimestamp(),lastMessageAt:serverTimestamp()
-    });
-  }
-  const record=await getDoc(doc(state.db,"lightConversations",id));
-  if(!record.exists()||!record.data().participants?.includes(state.user.uid))throw Error("Access not authorized.");
-  status("Conversation opened. Light of Hope permissions remain enforced.");
-  selectThread(id,peer);
- }catch(error){status("Unable to start conversation: "+error.message+" Check verified member eligibility and block permissions.");}
+  const result=await contactRequest("open",foundMemberHandle);
+  if(result.opened){status("Conversation created securely. Select it from your inbox.");}
+ }catch(error){status("Unable to open this conversation.");}
  finally{button.disabled=false;}
 });
 el("sendForm").addEventListener("submit",async e=>{
