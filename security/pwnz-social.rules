@@ -2,6 +2,13 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
+    function agreementCurrent() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid))
+        && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.accepted == true
+        && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.version == 'pwnz-2026.10.30.1'
+        && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.expiresAt > request.time;
+    }
     function owner(uid) { return signedIn() && request.auth.uid == uid; }
     function profileExists(uid) { return exists(/databases/$(database)/documents/pwnzProfiles/$(uid)); }
     function profile(uid) { return get(/databases/$(database)/documents/pwnzProfiles/$(uid)).data; }
@@ -22,10 +29,25 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pwnzPosts/$(id)).data.status == 'published';
     }
 
+    match /pwnzAgreements/{uid} {
+      allow get: if owner(uid);
+      allow list, delete: if false;
+      allow create, update: if owner(uid)
+        && request.resource.data.keys().hasOnly(['uid','accepted','version','acceptedAt','expiresAt'])
+        && request.resource.data.keys().hasAll(['uid','accepted','version','acceptedAt','expiresAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.accepted == true
+        && request.resource.data.version == 'pwnz-2026.10.30.1'
+        && request.resource.data.acceptedAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(31,'d');
+    }
+
     match /pwnzHandles/{key} {
-      allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow get: if signedIn() && resource.data.uid == request.auth.uid;
       allow list: if false; // Never expose the handle-to-UID registry as a directory.
-      allow create: if signedIn()
+      allow create: if agreementCurrent()
         && key.matches('^[a-z][a-z0-9_]{2,23}$')
         && request.resource.data.keys().hasOnly(['uid','handle','createdAt'])
         && request.resource.data.uid == request.auth.uid
@@ -41,7 +63,7 @@ service cloud.firestore {
       // Identity-bearing records are owner-only, not a public UID directory.
       allow get: if owner(uid);
       allow list: if false;
-      allow create: if owner(uid)
+      allow create: if owner(uid) && agreementCurrent()
         && request.resource.data.keys().hasOnly(['uid','handle','handleKey','role','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.keys().hasAll(['uid','handle','handleKey','role','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.uid == uid
@@ -55,7 +77,7 @@ service cloud.firestore {
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
         && getAfter(/databases/$(database)/documents/pwnzHandles/$(request.resource.data.handleKey)).data.uid == uid;
-      allow update: if owner(uid)
+      allow update: if owner(uid) && agreementCurrent()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio','twitch','youtube','updatedAt'])
         && textWithin(request.resource.data.bio, 300)
         && optionalTwitch(request.resource.data)
@@ -70,7 +92,7 @@ service cloud.firestore {
 
     match /pwnzPosts/{postId} {
       allow read: if resource.data.status == 'published';
-      allow create: if signedIn()
+      allow create: if agreementCurrent()
         && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
         && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','status','createdAt'])
         && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','status','createdAt'])
@@ -83,12 +105,12 @@ service cloud.firestore {
         && request.resource.data.status == 'published'
         && request.resource.data.createdAt == request.time;
       allow update: if false;
-      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+      allow delete: if agreementCurrent() && resource.data.authorUid == request.auth.uid;
     }
 
     match /pwnzComments/{commentId} {
       allow read: if publicPost(resource.data.postId) && resource.data.createdAt is timestamp;
-      allow create: if signedIn()
+      allow create: if agreementCurrent()
         && request.resource.data.keys().hasOnly(['postId','authorUid','authorHandle','body','createdAt'])
         && request.resource.data.keys().hasAll(['postId','authorUid','authorHandle','body','createdAt'])
         && request.resource.data.postId is string
@@ -106,7 +128,7 @@ service cloud.firestore {
     match /pwnzRoleApplications/{uid} {
       allow get: if owner(uid);
       allow list: if false;
-      allow create: if owner(uid)
+      allow create: if owner(uid) && agreementCurrent()
         && profileExists(uid)
         && request.resource.data.keys().hasOnly(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
         && request.resource.data.keys().hasAll(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
@@ -127,7 +149,7 @@ service cloud.firestore {
     match /pwnzHearts/{id} {
       allow get: if signedIn() && resource.data.uid == request.auth.uid;
       allow list: if false;
-      allow create: if signedIn() && profileExists(request.auth.uid)
+      allow create: if agreementCurrent() && profileExists(request.auth.uid)
         && request.resource.data.keys().hasOnly(['uid','postId','createdAt'])
         && request.resource.data.keys().hasAll(['uid','postId','createdAt'])
         && request.resource.data.uid == request.auth.uid
@@ -142,7 +164,7 @@ service cloud.firestore {
 
     match /pwnzFollows/{id} {
       allow read: if signedIn() && (resource.data.followerUid == request.auth.uid || resource.data.followedUid == request.auth.uid);
-      allow create: if signedIn()
+      allow create: if agreementCurrent()
         && request.resource.data.keys().hasOnly(['followerUid','followedUid','createdAt'])
         && request.resource.data.keys().hasAll(['followerUid','followedUid','createdAt'])
         && request.resource.data.followerUid == request.auth.uid
