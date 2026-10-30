@@ -2,6 +2,7 @@ import {initializeApp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase
 import {getAuth,onAuthStateChanged} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import {getFirestore,collection,query,orderBy,limit,getDocs,doc,getDoc,setDoc,deleteDoc,serverTimestamp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 const el=id=>document.getElementById(id),host=el("members");
+el("search").value=new URLSearchParams(location.search).get("profile")||"";
 let auth,db,user,profiles=[],mine=null;
 const say=s=>el("notice").textContent=s;
 async function load(){
@@ -31,7 +32,7 @@ function render(){
  const ref=doc(db,"pwnzFollows",user.uid+"__"+p.uid),old=await getDoc(ref);
  if(old.exists()){await deleteDoc(ref);follow.textContent="Follow";}else{await setDoc(ref,{followerUid:user.uid,followedUid:p.uid,createdAt:serverTimestamp()});follow.textContent="Following";}
  }catch(e){say("Connection unavailable: "+e.message);}finally{follow.disabled=false;}});
- const chat=document.createElement("a");chat.href="/messenger/?member="+encodeURIComponent(p.handle);chat.textContent="Message";chat.style.marginLeft="12px";
+ const chat=document.createElement("a");chat.href="/messenger/pwnz/?member="+encodeURIComponent(p.handle);chat.textContent="Message";chat.style.marginLeft="12px";
  card.append(follow,chat);
  }host.append(card);
  }
