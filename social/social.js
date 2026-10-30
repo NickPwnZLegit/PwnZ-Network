@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register"};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -16,17 +16,18 @@ async function init(){
   const response=await fetch("/api/pwnz-config",{cache:"no-store"});
   if(!response.ok)throw new Error("Configuration endpoint unavailable");
   const info=await response.json();
-  if(!info.ready){notice("PwnZ social database is not configured yet. The stream viewer and public pages remain available.");return;}
+  if(!info.ready){$("auth-panel").hidden=false; notice("PwnZ registration is in protected preview. Firebase security activation is still required before account creation can work."); return;}
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();
-   state.agreementCurrent=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
+   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user){
      await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus(),loadAgreement()]);
      await refreshBadgeProgress();
    }
+   state.agreementCurrent=state.verifiedEden||state.agreementCurrent;
    renderSession(); watchPosts();
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
@@ -34,7 +35,7 @@ async function init(){
 async function loadAgreement(){
  try{const record=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
   const a=record.exists()?record.data():{};
-  state.agreementCurrent=a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now();
+  state.agreementCurrent=state.verifiedEden||a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now();
  }catch(e){state.agreementCurrent=false;notice("Agreement permission check unavailable. Community posting remains locked.");}
 }
 $("agree-submit").addEventListener("click",async()=>{
@@ -49,7 +50,8 @@ $("agree-submit").addEventListener("click",async()=>{
 });
 function renderSession(){
  const signed=Boolean(state.user);
- $("community-agreement").hidden=!(signed&&!state.agreementCurrent);
+ $("community-agreement").hidden=!(signed&&!state.agreementCurrent&&!state.edenActive);
+ $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!signed;
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:state.user?.email||"";
@@ -88,6 +90,7 @@ async function checkEdenStatus(){
     &&(profile.profileStatus==="active"||profile.edenRealIdStatus==="activated_v16"
       ||(owner.status==="grandfathered"&&owner.reservationType==="legacy-profile-migration"&&Number(profile.memberNumber)>0)));
   const expiry=agreement?.expiresAt?.toDate?.();
+  state.edenActive=active;
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
     &&agreement.agreementVersion==="v16-2026.08.27.1"
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
@@ -124,16 +127,26 @@ function renderBadges(){
 }
 function chooseAuthMode(mode){
  state.authMode=mode;
- const label={register:"Create a new PwnZ account",eden:"Sign in with verified Eden RealID account",pwnz:"Sign in with existing PwnZ account"}[mode];
- $("auth-submit").textContent=label;
+ if(mode==="eden")state.authAction="signin";
+ document.querySelectorAll("[data-auth-mode]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.authMode===mode)));
+ $("pwnz-account-actions").hidden=mode==="eden";
+ $("auth-submit").textContent=mode==="eden"?"Sign in with Eden account":state.authAction==="register"?"Create PwnZ account":"Sign in to PwnZ";
  $("auth-help").textContent=mode==="eden"
-   ?"Sign in using the credentials of the account that owns your Eden RealID. An Eden name by itself is not a password or proof of ownership. We verify the private owner record after sign-in."
-   :mode==="register"?"Make a regular PwnZ account, then reserve your own PwnZ name. You may connect a verified Eden RealID later after secure account linking is implemented."
-   :"Use the email and password for the account that created your PwnZ profile.";
- document.querySelectorAll("[data-auth-mode]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.authMode===mode)));
+  ?"Use the email and password of your existing verified Eden RealID account. We'll verify ownership and your Light of Hope agreement, then you may create a separate PwnZ profile name."
+  :"Use your email and password. Choose Create account for new members or Sign in for an existing PwnZ account.";
 }
-document.querySelectorAll("[data-auth-mode]").forEach(b=>b.addEventListener("click",()=>chooseAuthMode(b.dataset.authMode)));
-chooseAuthMode("register");
+document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("click",()=>chooseAuthMode(x.dataset.authMode)));
+document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("click",()=>{
+ state.authAction=x.dataset.authAction;
+ document.querySelectorAll("[data-auth-action]").forEach(y=>y.setAttribute("aria-pressed",String(y===x)));
+ chooseAuthMode("pwnz");
+}));
+$("recheck-eden").addEventListener("click",async()=>{
+ if(!state.user)return;
+ await checkEdenStatus();state.agreementCurrent=state.verifiedEden;await loadAgreement();
+ state.agreementCurrent=state.verifiedEden||state.agreementCurrent;renderSession();
+});
+chooseAuthMode("pwnz");
 async function loadFollowing(){
  if(!state.user)return;
  try{const snap=await getDocs(query(collection(state.db,"pwnzFollows"),where("followerUid","==",state.user.uid),limit(250)));state.following=new Set(snap.docs.map(d=>d.data().followedUid));}
@@ -225,7 +238,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  const email=$("email").value.trim(),pass=$("password").value;
  $("auth-submit").disabled=true;
  try{
-   if(state.authMode==="register")await createUserWithEmailAndPassword(state.auth,email,pass);
+   if(state.authMode==="pwnz"&&state.authAction==="register")await createUserWithEmailAndPassword(state.auth,email,pass);
    else await signInWithEmailAndPassword(state.auth,email,pass);
    $("password").value="";
    notice("Authenticated. Complete a unique PwnZ profile if you haven't already.");
