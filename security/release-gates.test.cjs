@@ -23,3 +23,14 @@ test("Messenger does not directly query private PwnZ handle registry",()=>{
 test("Application email is server-side via Light of Hope",()=>{
  const s=get("api/pwnz-apply.js");assert.match(s,/light-of-hope\.net\/api\/community-registration/);
 });
+
+test("Public gamer cards and mutual-follow chat have guarded collections",()=>{
+ const rules=get("security/pwnz-social.rules");
+ for(const name of ["pwnzPublicProfiles","pwnzConversations","pwnzBlocks"])assert.match(rules,new RegExp("match /"+name+"/"));
+ assert.match(rules,/pwnzConnected\(/);
+ assert.match(rules,/pwnzNoBlock\(/);
+ assert.match(rules,/allow create: if agreementCurrent\(\)/);
+ const app=get("messenger/pwnz/app.js");
+ assert.match(app,/pwnzConversations/);
+ assert.match(app,/pwnzBlocks/);
+});
