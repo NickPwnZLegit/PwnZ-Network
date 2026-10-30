@@ -23,7 +23,8 @@ service cloud.firestore {
     }
 
     match /pwnzHandles/{key} {
-      allow read: if true;
+      allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
+      allow list: if false; // Never expose the handle-to-UID registry as a directory.
       allow create: if signedIn()
         && key.matches('^[a-z][a-z0-9_]{2,23}$')
         && request.resource.data.keys().hasOnly(['uid','handle','createdAt'])
@@ -37,7 +38,9 @@ service cloud.firestore {
     }
 
     match /pwnzProfiles/{uid} {
-      allow read: if true;
+      // Identity-bearing records are owner-only, not a public UID directory.
+      allow get: if owner(uid);
+      allow list: if false;
       allow create: if owner(uid)
         && request.resource.data.keys().hasOnly(['uid','handle','handleKey','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.keys().hasAll(['uid','handle','handleKey','bio','twitch','youtube','createdAt','updatedAt'])
