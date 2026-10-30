@@ -54,6 +54,24 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pwnzPosts/$(id)).data.status == 'published';
     }
 
+
+    function pwnzMutual(a,b) {
+      return exists(/databases/$(database)/documents/pwnzFollows/$(a + '__' + b))
+        && exists(/databases/$(database)/documents/pwnzFollows/$(b + '__' + a));
+    }
+    function pwnzNoBlock(a,b) {
+      return !exists(/databases/$(database)/documents/pwnzBlocks/$(a + '__' + b))
+        && !exists(/databases/$(database)/documents/pwnzBlocks/$(b + '__' + a));
+    }
+    function pwnzConversation(id) {
+      return get(/databases/$(database)/documents/pwnzConversations/$(id)).data;
+    }
+    function pwnzParticipant(id) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/pwnzConversations/$(id))
+        && request.auth.uid in pwnzConversation(id).participants;
+    }
+
     match /pwnzAgreements/{uid} {
       allow get: if owner(uid);
       allow list, delete: if false;
@@ -101,7 +119,8 @@ service cloud.firestore {
         && request.resource.data.youtube == ''
         && request.resource.data.createdAt == request.time
         && request.resource.data.updatedAt == request.time
-        && getAfter(/databases/$(database)/documents/pwnzHandles/$(request.resource.data.handleKey)).data.uid == uid;
+        && getAfter(/databases/$(database)/documents/pwnzHandles/$(request.resource.data.handleKey)).data.uid == uid
+        && getAfter(/databases/$(database)/documents/pwnzPublicProfiles/$(uid)).data.handle == request.resource.data.handle;
       allow update: if owner(uid) && agreementCurrent()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio','twitch','youtube','updatedAt'])
         && textWithin(request.resource.data.bio, 300)
@@ -113,6 +132,342 @@ service cloud.firestore {
         )
         && request.resource.data.updatedAt == request.time;
       allow delete: if false;
+    }
+
+
+    // Searchable, sanitized gamer card: never includes email, wallets or Eden identity.
+    match /pwnzPublicProfiles/{uid} {
+      allow get: if signedIn();
+      allow list: if signedIn() && request.query.limit <= 10;
+      allow create: if owner(uid) && agreementCurrent()
+        && request.resource.data.keys().hasOnly(['uid','handle','role','bio','createdAt','updatedAt'])
+        && request.resource.data.keys().hasAll(['uid','handle','role','bio','createdAt','updatedAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.handle.matches('^[a-z][a-z0-9_]{2,23}
+      allow read: if resource.data.status == 'published';
+      allow create: if agreementCurrent()
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','status','createdAt'])
+        && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','status','createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && textWithin(request.resource.data.title, 140)
+        && textWithin(request.resource.data.body, 4000)
+        && (request.resource.data.title.size() > 0 || request.resource.data.body.size() > 0 || 'youtubeId' in request.resource.data || 'twitch' in request.resource.data)
+        && optionalVideoId(request.resource.data)
+        && optionalTwitch(request.resource.data)
+        && request.resource.data.status == 'published'
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if agreementCurrent() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /pwnzComments/{commentId} {
+      allow read: if publicPost(resource.data.postId) && resource.data.createdAt is timestamp;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.keys().hasAll(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.postId is string
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.authorUid == request.auth.uid
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && textWithin(request.resource.data.body, 500)
+        && request.resource.data.body.size() > 0
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // Applications remain pending. Browser users cannot approve their own roles.
+    match /pwnzRoleApplications/{uid} {
+      allow get: if owner(uid);
+      allow list: if false;
+      allow create: if owner(uid) && agreementCurrent()
+        && profileExists(uid)
+        && request.resource.data.keys().hasOnly(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.roleRequested in ['gamer','game_creator']
+        && textWithin(request.resource.data.summary, 1200)
+        && request.resource.data.summary.size() >= 20
+        && textWithin(request.resource.data.exampleLink, 1024)
+        && (request.resource.data.exampleLink == '' || request.resource.data.exampleLink.matches('^https://.*$'))
+        && request.resource.data.rightsConfirmed is bool
+        && (request.resource.data.roleRequested == 'gamer' || request.resource.data.rightsConfirmed == true)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Private hearts: one owner heart per post, no public UID listing.
+    match /pwnzHearts/{id} {
+      allow get: if signedIn() && resource.data.uid == request.auth.uid;
+      allow list: if false;
+      allow create: if agreementCurrent() && profileExists(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['uid','postId','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','postId','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.postId.matches('^[a-zA-Z0-9]{10,50}$')
+        && id == request.resource.data.postId + '__' + request.auth.uid
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /pwnzFollows/{id} {
+      allow read: if signedIn() && (resource.data.followerUid == request.auth.uid || resource.data.followedUid == request.auth.uid);
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['followerUid','followedUid','createdAt'])
+        && request.resource.data.keys().hasAll(['followerUid','followedUid','createdAt'])
+        && request.resource.data.followerUid == request.auth.uid
+        && request.resource.data.followedUid is string
+        && request.resource.data.followedUid != request.auth.uid
+        && profileExists(request.resource.data.followedUid)
+        && id == request.auth.uid + '__' + request.resource.data.followedUid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.followerUid == request.auth.uid;
+    }
+  }
+}
+)
+        && request.resource.data.role == 'member'
+        && request.resource.data.bio == ''
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/pwnzProfiles/$(uid)).data.handle == request.resource.data.handle;
+      allow update: if owner(uid) && agreementCurrent()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['bio','updatedAt'])
+        && textWithin(request.resource.data.bio,300)
+        && request.resource.data.updatedAt == request.time
+        && getAfter(/databases/$(database)/documents/pwnzProfiles/$(uid)).data.bio == request.resource.data.bio;
+      allow delete: if false;
+    }
+
+    match /pwnzBlocks/{id} {
+      allow get: if signedIn() && (id.matches('^' + request.auth.uid + '__.+
+      allow read: if resource.data.status == 'published';
+      allow create: if agreementCurrent()
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','status','createdAt'])
+        && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','status','createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && textWithin(request.resource.data.title, 140)
+        && textWithin(request.resource.data.body, 4000)
+        && (request.resource.data.title.size() > 0 || request.resource.data.body.size() > 0 || 'youtubeId' in request.resource.data || 'twitch' in request.resource.data)
+        && optionalVideoId(request.resource.data)
+        && optionalTwitch(request.resource.data)
+        && request.resource.data.status == 'published'
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if agreementCurrent() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /pwnzComments/{commentId} {
+      allow read: if publicPost(resource.data.postId) && resource.data.createdAt is timestamp;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.keys().hasAll(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.postId is string
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.authorUid == request.auth.uid
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && textWithin(request.resource.data.body, 500)
+        && request.resource.data.body.size() > 0
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // Applications remain pending. Browser users cannot approve their own roles.
+    match /pwnzRoleApplications/{uid} {
+      allow get: if owner(uid);
+      allow list: if false;
+      allow create: if owner(uid) && agreementCurrent()
+        && profileExists(uid)
+        && request.resource.data.keys().hasOnly(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.roleRequested in ['gamer','game_creator']
+        && textWithin(request.resource.data.summary, 1200)
+        && request.resource.data.summary.size() >= 20
+        && textWithin(request.resource.data.exampleLink, 1024)
+        && (request.resource.data.exampleLink == '' || request.resource.data.exampleLink.matches('^https://.*$'))
+        && request.resource.data.rightsConfirmed is bool
+        && (request.resource.data.roleRequested == 'gamer' || request.resource.data.rightsConfirmed == true)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Private hearts: one owner heart per post, no public UID listing.
+    match /pwnzHearts/{id} {
+      allow get: if signedIn() && resource.data.uid == request.auth.uid;
+      allow list: if false;
+      allow create: if agreementCurrent() && profileExists(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['uid','postId','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','postId','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.postId.matches('^[a-zA-Z0-9]{10,50}$')
+        && id == request.resource.data.postId + '__' + request.auth.uid
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /pwnzFollows/{id} {
+      allow read: if signedIn() && (resource.data.followerUid == request.auth.uid || resource.data.followedUid == request.auth.uid);
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['followerUid','followedUid','createdAt'])
+        && request.resource.data.keys().hasAll(['followerUid','followedUid','createdAt'])
+        && request.resource.data.followerUid == request.auth.uid
+        && request.resource.data.followedUid is string
+        && request.resource.data.followedUid != request.auth.uid
+        && profileExists(request.resource.data.followedUid)
+        && id == request.auth.uid + '__' + request.resource.data.followedUid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.followerUid == request.auth.uid;
+    }
+  }
+}
+) || id.matches('^.+__' + request.auth.uid + '
+      allow read: if resource.data.status == 'published';
+      allow create: if agreementCurrent()
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','status','createdAt'])
+        && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','status','createdAt'])
+        && request.resource.data.authorUid == request.auth.uid
+        && textWithin(request.resource.data.title, 140)
+        && textWithin(request.resource.data.body, 4000)
+        && (request.resource.data.title.size() > 0 || request.resource.data.body.size() > 0 || 'youtubeId' in request.resource.data || 'twitch' in request.resource.data)
+        && optionalVideoId(request.resource.data)
+        && optionalTwitch(request.resource.data)
+        && request.resource.data.status == 'published'
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if agreementCurrent() && resource.data.authorUid == request.auth.uid;
+    }
+
+    match /pwnzComments/{commentId} {
+      allow read: if publicPost(resource.data.postId) && resource.data.createdAt is timestamp;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.keys().hasAll(['postId','authorUid','authorHandle','body','createdAt'])
+        && request.resource.data.postId is string
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.authorUid == request.auth.uid
+        && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
+        && textWithin(request.resource.data.body, 500)
+        && request.resource.data.body.size() > 0
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // Applications remain pending. Browser users cannot approve their own roles.
+    match /pwnzRoleApplications/{uid} {
+      allow get: if owner(uid);
+      allow list: if false;
+      allow create: if owner(uid) && agreementCurrent()
+        && profileExists(uid)
+        && request.resource.data.keys().hasOnly(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','roleRequested','summary','exampleLink','rightsConfirmed','status','createdAt'])
+        && request.resource.data.uid == uid
+        && request.resource.data.roleRequested in ['gamer','game_creator']
+        && textWithin(request.resource.data.summary, 1200)
+        && request.resource.data.summary.size() >= 20
+        && textWithin(request.resource.data.exampleLink, 1024)
+        && (request.resource.data.exampleLink == '' || request.resource.data.exampleLink.matches('^https://.*$'))
+        && request.resource.data.rightsConfirmed is bool
+        && (request.resource.data.roleRequested == 'gamer' || request.resource.data.rightsConfirmed == true)
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+    }
+
+    // Private hearts: one owner heart per post, no public UID listing.
+    match /pwnzHearts/{id} {
+      allow get: if signedIn() && resource.data.uid == request.auth.uid;
+      allow list: if false;
+      allow create: if agreementCurrent() && profileExists(request.auth.uid)
+        && request.resource.data.keys().hasOnly(['uid','postId','createdAt'])
+        && request.resource.data.keys().hasAll(['uid','postId','createdAt'])
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.postId.matches('^[a-zA-Z0-9]{10,50}$')
+        && id == request.resource.data.postId + '__' + request.auth.uid
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.uid == request.auth.uid;
+    }
+
+    match /pwnzFollows/{id} {
+      allow read: if signedIn() && (resource.data.followerUid == request.auth.uid || resource.data.followedUid == request.auth.uid);
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['followerUid','followedUid','createdAt'])
+        && request.resource.data.keys().hasAll(['followerUid','followedUid','createdAt'])
+        && request.resource.data.followerUid == request.auth.uid
+        && request.resource.data.followedUid is string
+        && request.resource.data.followedUid != request.auth.uid
+        && profileExists(request.resource.data.followedUid)
+        && id == request.auth.uid + '__' + request.resource.data.followedUid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.followerUid == request.auth.uid;
+    }
+  }
+}
+));
+      allow list: if false;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['blockerUid','blockedUid','createdAt'])
+        && request.resource.data.blockerUid == request.auth.uid
+        && request.resource.data.blockedUid is string
+        && request.resource.data.blockedUid != request.auth.uid
+        && id == request.auth.uid + '__' + request.resource.data.blockedUid
+        && request.resource.data.createdAt == request.time;
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.blockerUid == request.auth.uid;
+    }
+
+    match /pwnzConversations/{id} {
+      allow get, list: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['participants','type','createdAt'])
+        && request.resource.data.keys().hasAll(['participants','type','createdAt'])
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants[0] is string
+        && request.resource.data.participants[1] is string
+        && request.resource.data.participants[0] != request.resource.data.participants[1]
+        && id == request.resource.data.participants[0] + '__' + request.resource.data.participants[1]
+        && profileExists(request.resource.data.participants[0])
+        && profileExists(request.resource.data.participants[1])
+        && pwnzMutual(request.resource.data.participants[0],request.resource.data.participants[1])
+        && pwnzNoBlock(request.resource.data.participants[0],request.resource.data.participants[1])
+        && request.resource.data.type == 'direct'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
+      match /messages/{msgId} {
+        allow get, list: if pwnzParticipant(id);
+        allow create: if agreementCurrent() && pwnzParticipant(id)
+          && pwnzMutual(pwnzConversation(id).participants[0],pwnzConversation(id).participants[1])
+          && pwnzNoBlock(pwnzConversation(id).participants[0],pwnzConversation(id).participants[1])
+          && request.resource.data.keys().hasOnly(['senderUid','body','createdAt'])
+          && request.resource.data.keys().hasAll(['senderUid','body','createdAt'])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 3000
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
     }
 
     match /pwnzPosts/{postId} {
