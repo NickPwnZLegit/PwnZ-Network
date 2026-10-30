@@ -49,3 +49,13 @@ Open-source code licenses do not automatically grant commercial rights to a game
 - IMPORTANT: TestNet moderation needs reporting, block controls, automated abuse defenses, retention policy, and a restricted signup plan before broad public launch. Do not mistake CRUD foundations for moderation-ready social launch.
 - Twitch embedding is simple and already in `/live/`; third-party stream hosting stays on Twitch. PwnZ does not ingest streams.
 - Next milestone: integrate moderation and owner-only media upload pipeline before public production, then direct messages and notifications. Membership-gated gaming is later.
+
+## Distinct PwnZ account paths, badges and Messenger switcher
+- New account: register with supported Firebase Authentication email/password in the same approved Firebase project, then reserve a unique lowercase PwnZ handle. A PwnZ-only account is not automatically a verified Eden RealID and cannot bypass Light of Hope messaging eligibility.
+- Eden account: sign in with the Firebase credentials that already own the Eden RealID, independently verify the private `profiles/{uid}`, `edenRealIdOwners/{uid}`, and current `agreements/{uid}`. Never authenticate by typed Eden handle alone. After sign-in reserve a distinct PwnZ name.
+- The account selector is NOT cross-domain SSO. SSO requires an audited shared authorization flow later.
+- PwnZ Member badge comes from a profile record. First Signal, Signal Architect, Orbit Builder and Clip Caster derive from posts/follows; Eden Bridge requires active owner and agreement checks. Other badges are future cosmetic milestones only, without token rewards or privilege grants.
+- Messenger network switcher on `/messenger/` offers PwnZ, Light of Hope, EdenNetwork, LOH Community and EnderNet. Network labels are UI context ONLY until additional websites and verified account directories exist; all eligible conversations remain in existing `lightConversations`.
+- Private message access still requires valid owner, active Light of Hope profile, current agreement, participant checks and blocks. Current cross-network messaging adapter is development only; do not deploy against Light of Hope data until Firestore emulator tests pass.
+- Additional Firestore query index `pwnzPosts(authorUid ASC,status ASC)` included to support badge progress.
+- User-created accounts require abuse controls, verification and explicit identity-link policy before open registration. Tokens, airdrops and tournament privileges are NOT attached to cosmetic badges.
