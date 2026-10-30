@@ -35,6 +35,7 @@ function renderSession(){
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!signed;
  $("compose").hidden=!(signed&&state.profile);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:state.user?.email||"";
+ $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
  $("identity-state").textContent=state.user?(state.verifiedEden?"✓ Activated Eden RealID ownership confirmed. Your PwnZ identity is separate.":"PwnZ account signed in. Eden RealID not verified on this account. Messaging requires a verified Light Member."):"Choose an account path above.";
  renderBadges();
  if(state.profile){
@@ -42,9 +43,11 @@ function renderSession(){
   $("bio").value=state.profile.bio||"";$("twitch").value=state.profile.twitch||"";
   $("youtube").value=state.profile.youtube||"";
   $("handle-entry").hidden=true;
+  $("role-application").hidden=false;
   $("profile-note").textContent="Your unique PwnZ profile is active. Your Eden RealID stays private.";
  }else{
   $("handle-entry").hidden=!signed;
+  $("role-application").hidden=true;
   $("profile-note").textContent=signed?"Choose a unique PwnZ name to post and follow people. This name is separate from Eden RealID.":"Sign in to create a PwnZ profile.";
  }
  renderPosts();
@@ -208,7 +211,7 @@ $("reserve").addEventListener("click",async()=>{
    const [taken,already]=await Promise.all([tx.get(ref),tx.get(profile)]);
    if(taken.exists()||already.exists())throw new Error("That name is unavailable or you already have a profile.");
    tx.set(ref,{uid:state.user.uid,handle,createdAt:serverTimestamp()});
-   tx.set(profile,{uid:state.user.uid,handle,handleKey:key,bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+   tx.set(profile,{uid:state.user.uid,handle,handleKey:key,role:"member",bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   });
   await loadProfile();await refreshBadgeProgress();renderSession();notice("PwnZ profile created! PwnZ Member badge unlocked.");
  }catch(e){notice("Name registration failed: "+e.message);}finally{$("reserve").disabled=false;}
@@ -233,5 +236,21 @@ $("compose").addEventListener("submit",async e=>{
   await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,title:title.slice(0,140),body:body.slice(0,4000),...(youtubeId?{youtubeId}:{}),...(twitch?{twitch}:{}),status:"published",createdAt:serverTimestamp()});
   $("compose").reset();await refreshBadgeProgress();notice("Post published to the PwnZ community.");
  }catch(e){notice("Unable to publish: "+e.message);}finally{submit.disabled=false;}
+});
+$("role-application").addEventListener("submit",async e=>{
+ e.preventDefault();if(!state.user||!state.profile)return;
+ const roleRequested=$("role-request").value;
+ const summary=$("role-summary").value.trim();
+ const exampleLink=$("role-example").value.trim();
+ const rightsConfirmed=$("role-rights").checked;
+ if(!["gamer","game_creator"].includes(roleRequested)||summary.length<20||summary.length>1200){notice("Choose a role and enter at least 20 characters.");return;}
+ if(roleRequested==="game_creator"&&!rightsConfirmed){notice("Game creators must confirm that their submitted work and assets are authorized.");return;}
+ if(exampleLink){try{const u=new URL(exampleLink);if(u.protocol!=="https:")throw 0;}catch{notice("Provide a valid HTTPS link or leave it blank.");return;}}
+ const button=$("role-submit");button.disabled=true;
+ try{
+  await setDoc(doc(state.db,"pwnzRoleApplications",state.user.uid),{uid:state.user.uid,roleRequested,summary,exampleLink,rightsConfirmed,status:"pending",createdAt:serverTimestamp()});
+  $("role-application").reset();notice("Your application was submitted for review. Your role remains PwnZ Member until approved.");
+ }catch(error){notice("Unable to submit application: "+error.message);}
+ finally{button.disabled=false;}
 });
 init();
