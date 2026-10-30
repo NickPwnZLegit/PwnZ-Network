@@ -16,7 +16,7 @@ async function init(){
   if(!response.ok)throw new Error("Configuration endpoint unavailable");
   const info=await response.json();
   if(!info.ready){notice("PwnZ social database is not configured yet. The stream viewer and public pages remain available.");return;}
-  const app=initializeApp(info.config,"pwnz-shared");
+  const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
