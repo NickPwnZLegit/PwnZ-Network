@@ -63,7 +63,7 @@
   <header class="shell nav">
     <a class="brand" href="#top" aria-label="PwnZ Network home"><span class="mark">P</span><span>PwnZ NETWORK</span></a>
     <nav aria-label="Primary navigation"><a href="/social/">Social Network</a><a href="/messenger/">Messenger of Light</a><a href="/ecosystem/">PwnZ Token</a><a href="/arena/">PwnZ Arena</a><a href="/community/">Community</a><a href="/live/">Twitch Live</a><a href="/profile/">Sign in / Profile</a><a href="#vision">Our vision</a><a href="#ecosystem">Ecosystem</a><a href="https://light-of-hope.net/" rel="noopener noreferrer">Light of Hope ↗</a></nav>
-    <a class="button primary" href="/profile/#account">Sign in / Join PwnZ</a>
+    <a class="button primary" data-pwnz-session-link href="/social/#auth-panel">Sign in / Join PwnZ</a>
   </header>
   <main id="top" class="shell">
     <section class="hero" aria-labelledby="headline">
@@ -72,7 +72,7 @@
         <h1 id="headline">PLAY.<br><span>CREATE.</span><br>CONNECT.</h1>
         <p class="lede">PwnZ Network is the future home for gamers and visual creators inside the interconnected <strong>Light of Hope ecosystem</strong>. A place for creativity, collaboration and community to level up together.</p>
         <div class="cta">
-          <a class="button primary" href="/profile/#account">Join PwnZ / Sign in →</a><a class="button secondary" href="#vision">Explore the vision</a>
+          <a class="button primary" data-pwnz-session-link href="/social/#auth-panel">Join PwnZ / Sign in →</a><a class="button secondary" href="#vision">Explore the vision</a>
           <a class="button secondary" href="https://light-of-hope.net/" rel="noopener noreferrer">Discover Light of Hope ↗</a>
           <div class="cta" aria-label="Explore PwnZ"><a class="button secondary" href="/live/">📡 Twitch Live</a><a class="button secondary" href="/messenger/">💬 Messenger of Light</a><a class="button secondary" href="/ecosystem/">🪙 PwnZ Token</a><a class="button secondary" href="/arena/">🎮 Arena</a></div>
         </div>
@@ -139,5 +139,5 @@
     </section>
   </main>
   <footer class="shell"><span>© PwnZ Network · A future Light of Hope ecosystem project</span><span>Build with purpose. Play with imagination.</span></footer>
-<script defer src="/assets/pwnz-nav.js"></script></body>
+<script defer src="/assets/pwnz-nav.js"></script><script type="module" src="/assets/pwnz-session.js"></script></body>
 </html>
