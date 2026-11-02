@@ -56,11 +56,11 @@ function renderSession(){
  const signed=Boolean(state.user);
  $("community-agreement").hidden=!(signed&&state.backendReady&&!state.agreementCurrent&&!state.edenActive);
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
- $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!signed;
+ $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:state.user?.email||"";
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
- $("identity-state").textContent=state.user?(state.verifiedEden?"✓ Activated Eden RealID ownership confirmed. Your PwnZ identity is separate.":"PwnZ account signed in. Eden RealID not verified on this account. Messaging requires a verified Light Member."):"Choose an account path above.";
+ $("identity-state").textContent=state.user?(state.verifiedEden?"✓ Activated Eden RealID ownership confirmed. Your PwnZ identity is separate.":state.backendReady?"PwnZ account signed in. Eden RealID status will be checked from trusted records.":"Email sign-in active. Eden RealID verification and PwnZ profile setup await the combined Firebase rules."):"Choose an account path above.";
  renderBadges();
  if(state.profile){
   $("handle-current").textContent="@"+state.profile.handle;
