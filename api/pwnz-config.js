@@ -19,5 +19,5 @@ module.exports = function handler(req, res) {
   // Fail closed until cross-network rules, authorized domains, and moderator controls are verified.
   const enabled = process.env.PWNZ_SOCIAL_BACKEND_ENABLED === 'true';
   const ready = configured && enabled;
-  return res.status(200).json({ ready, configured, enabled, config: ready ? config : null });
+  return res.status(200).json({ ready, configured, enabled, config: configured ? config : null });
 };
