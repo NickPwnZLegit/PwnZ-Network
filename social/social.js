@@ -54,7 +54,7 @@ $("agree-submit").addEventListener("click",async()=>{
 });
 function renderSession(){
  const signed=Boolean(state.user);
- $("community-agreement").hidden=!(signed&&state.backendReady&&!state.agreementCurrent&&!state.edenActive);
+ $("community-agreement").hidden=!(signed&&state.backendReady&&state.profile&&!state.agreementCurrent&&!state.edenActive);
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
@@ -68,11 +68,11 @@ function renderSession(){
   $("youtube").value=state.profile.youtube||"";
   $("handle-entry").hidden=true;
   $("role-application").hidden=!state.agreementCurrent;
-  $("profile-note").textContent="Your unique PwnZ profile is active. Your Eden RealID stays private.";
+  $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Accept the 30-day PwnZ agreement below to participate.";
  }else{
-  $("handle-entry").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
+  $("handle-entry").hidden=!(signed&&state.backendReady&&(!state.edenActive||state.verifiedEden));
   $("role-application").hidden=true;
-  $("profile-note").textContent=signed?"Choose a unique PwnZ name to post and follow people. This name is separate from Eden RealID.":"Sign in to create a PwnZ profile.";
+  $("profile-note").textContent=signed?"Choose your PwnZ gamer name first. Verified Eden members use their existing agreement; PwnZ-only members accept the 30-day agreement after choosing a name.":"Sign in to create a PwnZ profile.";
  }
  renderPosts();
 }
@@ -252,7 +252,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 $("reserve").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.profile||!state.agreementCurrent)return;
+ if(!state.user||!state.db||state.profile||!state.backendReady||(state.edenActive&&!state.verifiedEden))return;
  const handle=$("handle").value.trim().toLowerCase(),key=handle;
  if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
@@ -265,7 +265,7 @@ $("reserve").addEventListener("click",async()=>{
    tx.set(profile,{uid:state.user.uid,handle,handleKey:key,role:"member",bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
    tx.set(doc(state.db,"pwnzPublicProfiles",state.user.uid),{uid:state.user.uid,handle,bio:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   });
-  await loadProfile();await refreshBadgeProgress();renderSession();notice("PwnZ profile created! PwnZ Member badge unlocked.");
+  await loadProfile();await refreshBadgeProgress();renderSession();notice(state.edenActive?"PwnZ gamer name linked to your verified Eden account.":"PwnZ gamer name reserved. Complete your 30-day community agreement to activate participation.");
  }catch(e){notice("Name registration failed: "+e.message);}finally{$("reserve").disabled=false;}
 });
 $("profile-form").addEventListener("submit",async e=>{
