@@ -7,7 +7,7 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -16,19 +16,22 @@ async function init(){
   const response=await fetch("/api/pwnz-config",{cache:"no-store"});
   if(!response.ok)throw new Error("Configuration endpoint unavailable");
   const info=await response.json();
-  if(!info.ready){$("auth-panel").hidden=false; notice("PwnZ registration is in protected preview. Firebase security activation is still required before account creation can work."); return;}
+  if(!info.configured||!info.config){$("auth-panel").hidden=false; notice("Firebase authentication configuration is missing."); return;}
+  state.backendReady=Boolean(info.ready);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();
    state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
-   if(user){
-     await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus(),loadAgreement()]);
+   if(user&&state.backendReady){
+     await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus()]);
+     await loadAgreement();
      await refreshBadgeProgress();
    }
    state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
-   renderSession(); watchPosts();
+   renderSession(); if(state.backendReady)watchPosts();
+   if(!state.backendReady)notice(user?"Email sign-in succeeded. PwnZ profiles and Eden verification are paused until Firebase rules are installed.":"Email sign-in is available. PwnZ registration and social features remain locked until Firebase activation.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
@@ -51,7 +54,7 @@ $("agree-submit").addEventListener("click",async()=>{
 });
 function renderSession(){
  const signed=Boolean(state.user);
- $("community-agreement").hidden=!(signed&&!state.agreementCurrent&&!state.edenActive);
+ $("community-agreement").hidden=!(signed&&state.backendReady&&!state.agreementCurrent&&!state.edenActive);
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!signed;
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
@@ -67,7 +70,7 @@ function renderSession(){
   $("role-application").hidden=!state.agreementCurrent;
   $("profile-note").textContent="Your unique PwnZ profile is active. Your Eden RealID stays private.";
  }else{
-  $("handle-entry").hidden=!(signed&&state.agreementCurrent);
+  $("handle-entry").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
   $("role-application").hidden=true;
   $("profile-note").textContent=signed?"Choose a unique PwnZ name to post and follow people. This name is separate from Eden RealID.":"Sign in to create a PwnZ profile.";
  }
@@ -239,6 +242,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  const email=$("email").value.trim(),pass=$("password").value;
  $("auth-submit").disabled=true;
  try{
+   if(state.authMode==="pwnz"&&state.authAction==="register"&&!state.backendReady)throw new Error("New PwnZ account registration is paused until Firebase permissions are installed.");
    if(state.authMode==="pwnz"&&state.authAction==="register")await createUserWithEmailAndPassword(state.auth,email,pass);
    else await signInWithEmailAndPassword(state.auth,email,pass);
    $("password").value="";
