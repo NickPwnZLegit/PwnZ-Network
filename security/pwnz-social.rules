@@ -31,6 +31,11 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.version == 'pwnz-2026.10.30.1'
         && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.expiresAt > request.time;
     }
+    // Identity may be reserved before a PwnZ-only agreement.
+    // Verified Eden members must still have the current Light of Hope agreement.
+    function pwnzIdentityEnrollment() {
+      return signedIn() && (!edenMember() || edenAgreementCurrent());
+    }
     function agreementCurrent() {
       return signedIn() && (edenMember() ? edenAgreementCurrent() : pwnzAgreementCurrent());
     }
@@ -82,7 +87,7 @@ service cloud.firestore {
     match /pwnzHandles/{key} {
       allow get: if signedIn() && (resource == null || resource.data.uid == request.auth.uid);
       allow list: if false; // An unclaimed name may be checked, but the UID registry remains private.
-      allow create: if agreementCurrent()
+      allow create: if pwnzIdentityEnrollment()
         && key.matches('^[a-z][a-z0-9_]{2,23}$')
         && request.resource.data.keys().hasOnly(['uid','handle','createdAt'])
         && request.resource.data.uid == request.auth.uid
@@ -98,7 +103,7 @@ service cloud.firestore {
       // Identity-bearing records are owner-only, not a public UID directory.
       allow get: if owner(uid);
       allow list: if false;
-      allow create: if owner(uid) && agreementCurrent()
+      allow create: if owner(uid) && pwnzIdentityEnrollment()
         && request.resource.data.keys().hasOnly(['uid','handle','handleKey','role','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.keys().hasAll(['uid','handle','handleKey','role','bio','twitch','youtube','createdAt','updatedAt'])
         && request.resource.data.uid == uid
@@ -132,7 +137,7 @@ service cloud.firestore {
     match /pwnzPublicProfiles/{uid} {
       allow get: if signedIn();
       allow list: if signedIn() && request.query.limit <= 25;
-      allow create: if owner(uid) && agreementCurrent()
+      allow create: if owner(uid) && pwnzIdentityEnrollment()
         && request.resource.data.keys().hasOnly(['uid','handle','bio','createdAt','updatedAt'])
         && request.resource.data.keys().hasAll(['uid','handle','bio','createdAt','updatedAt'])
         && request.resource.data.uid == uid
