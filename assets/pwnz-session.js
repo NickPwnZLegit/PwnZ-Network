@@ -1,0 +1,4 @@
+import {initializeApp,getApps,getApp} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import {getAuth,onAuthStateChanged,setPersistence,browserLocalPersistence} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+const show=(logged)=>{document.querySelectorAll("[data-pwnz-session-link]").forEach(a=>{a.textContent=logged?"My PwnZ Profile":"Sign in / Join PwnZ";a.href=logged?"/social/#profile-section":"/social/#auth-panel";});};
+(async()=>{try{const r=await fetch("/api/pwnz-config",{cache:"no-store"});const data=await r.json();if(!data.configured||!data.config)return;const app=getApps().length?getApp():initializeApp(data.config);const auth=getAuth(app);await setPersistence(auth,browserLocalPersistence);onAuthStateChanged(auth,user=>show(!!user));}catch(e){show(false);}})();
