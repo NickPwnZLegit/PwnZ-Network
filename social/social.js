@@ -58,9 +58,9 @@ function renderSession(){
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
- $("signed-name").textContent=state.profile?"@"+state.profile.handle:state.user?.email||"";
+ $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
- $("identity-state").textContent=state.user?(state.verifiedEden?"✓ Activated Eden RealID ownership confirmed. Your PwnZ identity is separate.":state.backendReady?"PwnZ account signed in. Eden RealID status will be checked from trusted records.":"Email sign-in active. Eden RealID verification and PwnZ profile setup await the combined Firebase rules."):"Choose an account path above.";
+ $("identity-state").textContent=state.user?(state.edenActive?(state.verifiedEden?"✓ Eden RealID verified across the ecosystem. Your PwnZ gamer name stays separate.":"✓ Eden RealID linked. Community participation waits for the current agreement."):"Finish creating or linking your Eden RealID before creating a PwnZ profile."):"Choose an ecosystem account path above.";
  renderBadges();
  if(state.profile){
   $("handle-current").textContent="@"+state.profile.handle;
@@ -70,9 +70,9 @@ function renderSession(){
   $("role-application").hidden=!state.agreementCurrent;
   $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Accept the 30-day PwnZ agreement below to participate.";
  }else{
-  $("handle-entry").hidden=!(signed&&state.backendReady&&(!state.edenActive||state.verifiedEden));
+  $("handle-entry").hidden=!(signed&&state.backendReady&&state.edenActive);
   $("role-application").hidden=true;
-  $("profile-note").textContent=signed?"Choose your PwnZ gamer name first. Verified Eden members use their existing agreement; PwnZ-only members accept the 30-day agreement after choosing a name.":"Sign in to create a PwnZ profile.";
+  $("profile-note").textContent=signed?(state.edenActive?"Choose your PwnZ gamer name. It links to your Eden identity without replacing it.":"Create or verify your Eden RealID first."):"Sign in to create a PwnZ profile.";
  }
  renderPosts();
 }
@@ -134,10 +134,14 @@ function chooseAuthMode(mode){
  if(mode==="eden")state.authAction="signin";
  document.querySelectorAll("[data-auth-mode]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.authMode===mode)));
  $("pwnz-account-actions").hidden=mode==="eden";
- $("auth-submit").textContent=mode==="eden"?"Sign in with Eden account":state.authAction==="register"?"Create PwnZ account":"Sign in to PwnZ";
+ const newEden=$("new-eden-name");
+ if(newEden)newEden.hidden=mode==="eden"||state.authAction==="signin";
+ $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
  $("auth-help").textContent=mode==="eden"
-  ?"Use the email and password of your existing verified Eden RealID account. We'll verify ownership and your Light of Hope agreement, then you may create a separate PwnZ profile name."
-  :"Use your email and password. Choose Create account for new members or Sign in for an existing PwnZ account.";
+  ?"During the transition, use the email and password already tied to your verified Eden RealID. Hope Labs ZK will replace this bootstrap later without changing your PwnZ profile."
+  :(state.authAction==="register"
+    ?"Create one Eden RealID and one PwnZ gamer name under the same ecosystem account. Email/password is temporary until ZK enrollment is available."
+    :"Sign in to your existing transitional account. Your Eden identity remains the ecosystem anchor.");
 }
 document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("click",()=>chooseAuthMode(x.dataset.authMode)));
 document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("click",()=>{
@@ -240,19 +244,39 @@ async function loadComments(postId,box){
 }
 $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state.auth)return;
  const email=$("email").value.trim(),pass=$("password").value;
+ const creating=state.authMode==="pwnz"&&state.authAction==="register";
+ const requestedEdenRealId=creating?$("eden-realid").value.trim():"";
  $("auth-submit").disabled=true;
  try{
-   if(state.authMode==="pwnz"&&state.authAction==="register"&&!state.backendReady)throw new Error("New PwnZ account registration is paused until Firebase permissions are installed.");
-   if(state.authMode==="pwnz"&&state.authAction==="register")await createUserWithEmailAndPassword(state.auth,email,pass);
-   else await signInWithEmailAndPassword(state.auth,email,pass);
+   if(creating&&!state.backendReady)throw new Error("New ecosystem registration is paused until Firebase permissions are installed.");
+   if(creating&&!requestedEdenRealId)throw new Error("Create an Eden RealID before continuing.");
+   let credential;
+   if(creating)credential=await createUserWithEmailAndPassword(state.auth,email,pass);
+   else credential=await signInWithEmailAndPassword(state.auth,email,pass);
+   if(creating){
+     const token=await credential.user.getIdToken();
+     const response=await fetch("/api/eden-realid",{
+       method:"POST",
+       headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+       body:JSON.stringify({action:"reserve-activate",requestedName:requestedEdenRealId})
+     });
+     const result=await response.json().catch(()=>({}));
+     if(!response.ok||!result.ok)throw new Error(result.message||result.error||"Eden RealID creation failed. Your account exists but onboarding is incomplete; sign in again and retry identity setup.");
+     await checkEdenStatus();
+     notice("Eden RealID created. Now choose your unique PwnZ gamer name.");
+   }else{
+     await checkEdenStatus();
+     if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account does not have an activated Eden RealID.");
+     notice(state.edenActive?"Eden account verified. Create your PwnZ gamer name if this is your first visit.":"Signed in. Finish Eden RealID setup before creating a PwnZ profile.");
+   }
    $("password").value="";
-   notice("Authenticated. Complete a unique PwnZ profile if you haven't already.");
+   renderSession();
  }catch(error){notice(error.message);}
  finally{$("auth-submit").disabled=false;}
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 $("reserve").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.profile||!state.backendReady||(state.edenActive&&!state.verifiedEden))return;
+ if(!state.user||!state.db||state.profile||!state.backendReady||!state.edenActive)return;
  const handle=$("handle").value.trim().toLowerCase(),key=handle;
  if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
@@ -265,7 +289,7 @@ $("reserve").addEventListener("click",async()=>{
    tx.set(profile,{uid:state.user.uid,handle,handleKey:key,role:"member",bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
    tx.set(doc(state.db,"pwnzPublicProfiles",state.user.uid),{uid:state.user.uid,handle,bio:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   });
-  await loadProfile();await refreshBadgeProgress();renderSession();notice(state.edenActive?"PwnZ gamer name linked to your verified Eden account.":"PwnZ gamer name reserved. Complete your 30-day community agreement to activate participation.");
+  await loadProfile();await refreshBadgeProgress();renderSession();notice("PwnZ gamer name linked to your Eden ecosystem identity.");
  }catch(e){notice("Name registration failed: "+e.message);}finally{$("reserve").disabled=false;}
 });
 $("profile-form").addEventListener("submit",async e=>{
