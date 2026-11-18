@@ -179,7 +179,9 @@ function watchPosts(){
 function renderPosts(){
  const host=$("posts");host.replaceChildren();
  const filter=$("feed-filter").value;
- const visible=state.posts.filter(post=>{const section=PWNZ_SECTIONS.includes(post.postSection)?post.postSection:"social";return filter==="all"|| (filter==="profile" ? section==="profile"&&post.authorUid===state.user?.uid : filter===section);});
+ const memberHandle=new URLSearchParams(location.search).get("member")||"";
+ const publicMember=/^[a-z][a-z0-9_]{2,23}$/.test(memberHandle)?memberHandle:null;
+ const visible=state.posts.filter(post=>{const section=PWNZ_SECTIONS.includes(post.postSection)?post.postSection:"social";return filter==="all"|| (filter==="profile" ? section==="profile"&&(publicMember ? post.authorHandle===publicMember : post.authorUid===state.user?.uid) : filter===section);});
  if(!visible.length){host.textContent="No matching posts yet. Try another category.";return;}
  visible.forEach(post=>{
   const card=document.createElement("article");card.className="post";
