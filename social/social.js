@@ -1,6 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
+import {preparePwnzMediaUpload} from "./media-staging.mjs";
+import * as storageSdk from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 import { parsePwnzMediaLink, normalizePostSection, isSafeExternalCard, PWNZ_SECTIONS } from "./external-media.mjs";
 import { checkPwnzMedia, validPwnzClipDuration } from "./media-policy.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -9,7 +11,7 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false,mediaLabEnabled:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false,mediaLabEnabled:false,mediaStagingEnabled:false,storage:null};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -23,6 +25,8 @@ async function init(){
   state.mediaLabEnabled=info.mediaLabEnabled===true&&state.backendReady;
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
+  state.storage=info.config.storageBucket?storageSdk.getStorage(app):null;
+  state.mediaStagingEnabled=info.mediaStagingEnabled===true&&state.mediaLabEnabled&&Boolean(state.storage);
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();
@@ -61,7 +65,10 @@ function renderSession(){
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);
- $("media-lab").hidden=!(state.mediaLabEnabled&&signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
+ $("media-lab").hidden=!(state.mediaLabEnabled&&signed&&state.profile&&state.agreementCurrent);
+ $("media-upload").hidden=!(state.mediaStagingEnabled&&signed&&state.profile&&state.agreementCurrent);
+ $("post-file-label").hidden=!(state.mediaStagingEnabled&&signed&&state.profile&&state.agreementCurrent);
+ $("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
  $("identity-state").textContent=state.user?(state.edenActive?(state.verifiedEden?"✓ Existing Eden RealID verified. Your PwnZ gamer name remains separate.":"Eden RealID is linked; renew its Light of Hope agreement to unlock participation."):"PwnZ-only account. Create a gamer name and accept the PwnZ community agreement. Eden linking is optional."):"Choose PwnZ sign-up or your existing Eden account.");
@@ -305,9 +312,26 @@ $("compose").addEventListener("submit",async e=>{
  let media=null,section="social";
  try{media=parsePwnzMediaLink(raw);section=normalizePostSection($("post-section").value);}
  catch(error){notice(error.message);return;}
- if(!title&&!body&&!media){notice("Add text or a supported video link.");return;}
+ const personalFile=$("post-file").files?.[0];
+ if(!title&&!body&&!media&&!personalFile){notice("Add text, a supported video link, or a private photo/video file.");return;}
  const submit=$("post-submit");submit.disabled=true;
  try{
+  if(personalFile){
+   if(media)throw new Error("Choose either a linked video or a personal upload.");
+   if(!state.mediaStagingEnabled)throw new Error("Private video uploads are not enabled for this preview.");
+   await preflightPwnzMedia(personalFile,section);
+   const meter=$("post-file-progress");meter.hidden=false;meter.value=0;
+   try{
+    const staged=await preparePwnzMediaUpload({file:personalFile,scope:section,
+      title,body,auth:state.auth,storageSdk,storage:state.storage,allowStaging:state.mediaStagingEnabled,
+      onProgress:v=>{meter.value=v;}});
+    const result=await staged.result;
+    if(result.status!=="pending-review")throw new Error("Unexpected private media state.");
+    $("compose").reset();
+    notice("Personal media staged privately for moderator review. No public post has been created.");
+   }finally{meter.hidden=true;}
+   return;
+  }
   const source=media?.provider;
   await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,
    title:title.slice(0,140),body:body.slice(0,4000),postSection:section,
@@ -345,6 +369,22 @@ $("role-application").addEventListener("submit",async e=>{
 });
 
 
+async function preflightPwnzMedia(file,scope){
+ const meta=checkPwnzMedia(file,scope);
+ if(meta.kind==="video"){
+  const objectUrl=URL.createObjectURL(file);
+  try{
+   const seconds=await new Promise((resolve,reject)=>{
+    const video=document.createElement("video");video.preload="metadata";
+    video.onloadedmetadata=()=>resolve(video.duration);
+    video.onerror=()=>reject(new Error("Video metadata cannot be read on this device."));
+    video.src=objectUrl;
+   });
+   if(!validPwnzClipDuration(seconds))throw new Error("Short clips must be no longer than 30 seconds.");
+  }finally{URL.revokeObjectURL(objectUrl);}
+ }
+ return meta;
+}
 $("media-check").addEventListener("click",async()=>{
  const output=$("media-result"),file=$("media-file").files?.[0];
  if(!state.mediaLabEnabled||!state.user||!state.profile||!state.agreementCurrent){
@@ -353,24 +393,31 @@ $("media-check").addEventListener("click",async()=>{
  if(!file){output.textContent="Choose a file to check.";return;}
  const button=$("media-check");button.disabled=true;
  try{
-  const meta=checkPwnzMedia(file,$("media-scope").value);
-  if(meta.kind==="video"){
-   const objectUrl=URL.createObjectURL(file);
-   try{
-    const seconds=await new Promise((resolve,reject)=>{
-     const video=document.createElement("video");video.preload="metadata";
-     video.onloadedmetadata=()=>resolve(video.duration);
-     video.onerror=()=>reject(new Error("Video metadata cannot be read on this device."));
-     video.src=objectUrl;
-    });
-    if(!validPwnzClipDuration(seconds))throw new Error("Short clips must be no longer than 30 seconds.");
-   }finally{URL.revokeObjectURL(objectUrl);}
-  }
+  const meta=await preflightPwnzMedia(file,$("media-scope").value);
   output.textContent=meta.kind==="video"
-   ?"Video passed the local preflight. No upload occurred; publishing is still disabled."
-   :"Photo passed the local preflight. No upload occurred; publishing is still disabled.";
+   ?"Video passed the local preflight; no upload occurred. Private staging is separately gated."
+   :"Photo passed the local preflight; no upload occurred. Private staging is separately gated.";
  }catch(error){output.textContent=error.message||"Media preflight failed.";}
  finally{button.disabled=false;}
+});
+$("media-upload").addEventListener("click",async()=>{
+ const file=$("media-file").files?.[0],output=$("media-result"),meter=$("media-progress"),button=$("media-upload");
+ if(!state.mediaStagingEnabled||!state.user||!state.profile||!state.agreementCurrent){
+  output.textContent="Private uploads remain disabled.";return;
+ }
+ if(!file){output.textContent="Choose a photo or video first.";return;}
+ button.disabled=true;meter.hidden=false;meter.value=0;
+ try{
+  await preflightPwnzMedia(file,$("media-scope").value);
+  const pending=await preparePwnzMediaUpload({file,scope:$("media-scope").value,
+   auth:state.auth,storageSdk,storage:state.storage,allowStaging:state.mediaStagingEnabled,
+   onProgress:v=>{meter.value=v;}});
+  const result=await pending.result;
+  if(result.status!=="pending-review")throw new Error("Unexpected review receipt.");
+  output.textContent="Your media is staged privately. Moderator approval is required before any post can appear.";
+  $("media-file").value="";
+ }catch(error){output.textContent=error.message||"Private upload failed; nothing was published.";}
+ finally{button.disabled=false;meter.hidden=true;}
 });
 
 const requestedSection=new URLSearchParams(location.search).get("section");
