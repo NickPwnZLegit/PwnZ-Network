@@ -26,6 +26,7 @@ function render(){
  const link=document.createElement("a");link.href="/members/?profile="+encodeURIComponent(p.handle);link.textContent="@"+p.handle;
  const bio=document.createElement("p");bio.className="muted";bio.textContent=p.bio||"PwnZ member";
  card.append(link,bio);
+ const posts=document.createElement("a");posts.href="/social/?section=profile&member="+encodeURIComponent(p.handle)+"#posts";posts.textContent="Profile posts and shared videos";posts.className="btn";posts.style.marginRight="9px";card.append(posts);
  if(mine&&p.uid!==user.uid){
  const follow=document.createElement("button");follow.textContent="Follow";follow.className="primary";
  follow.addEventListener("click",async()=>{follow.disabled=true;try{
