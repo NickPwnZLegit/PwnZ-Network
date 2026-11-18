@@ -114,7 +114,7 @@ async function checkEdenStatus(){
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
     &&agreement.agreementVersion==="v16-2026.08.27.1"
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
- }catch(e){state.verifiedEden=false;notice("Eden verification could not be checked. PwnZ-only features remain available after profile setup.");}
+ }catch(e){state.verifiedEden=false;notice("Eden verification could not be checked. New gamer enrollment remains locked until the shared registry is available.");}
 }
 async function refreshBadgeProgress(){
  if(!state.profile||!state.db||!state.user)return;
@@ -339,11 +339,13 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
    if(creating){
      const name=$("eden-name").value.trim();
      if(!name)throw new Error("Choose your shared Eden RealID before registration.");
-     // Do not create a new account if this requested handle is unavailable.
-     const availability=await sharedEdenRequest({action:"check",requestedName:name},{anonymous:false});
-     if(availability.available!==true)throw new Error(availability.message||"This Eden RealID is not available.");
+     // Firebase Auth must create or authenticate a UID before the trusted
+     // primary Eden registrar will accept exact-name checks. If the requested
+     // name is already taken, the email account remains recoverable.
      await createUserWithEmailAndPassword(state.auth,email,pass);
      try{
+       const availability=await sharedEdenRequest({action:"check",requestedName:name});
+       if(availability.available!==true)throw new Error("This Eden RealID is unavailable. Choose another name and complete your existing account.");
        await sharedEdenRequest({action:"reserve-activate",requestedName:name});
      }catch(error){
        // Do not delete the Auth account: that would risk orphaning an
