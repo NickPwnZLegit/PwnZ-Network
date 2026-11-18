@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
+import {parsePwnzMediaLink,extractPwnzMediaCards} from "./external-media.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
@@ -185,6 +186,15 @@ function renderPosts(){
   const title=document.createElement("h3");title.textContent=post.title||"Creator update";
   const body=document.createElement("p");body.textContent=post.body||"";
   card.append(top,title,body);
+  // External video content is linked, never embedded with untrusted scripts
+  // or downloaded into the PwnZ storage system.
+  for(const media of extractPwnzMediaCards(post.body)){
+   if(!["instagram","tiktok"].includes(media.provider))continue;
+   const link=document.createElement("a");
+   link.href=media.url;link.target="_blank";link.rel="noopener noreferrer";
+   link.textContent="Watch the shared "+(media.provider==="instagram"?"Instagram Reel / post":"TikTok video")+" on "+(media.provider==="instagram"?"Instagram":"TikTok");
+   link.className="external-media-card";card.append(link);
+  }
   if(post.youtubeId){
    const box=document.createElement("div");box.className="video";
    const iframe=document.createElement("iframe");iframe.loading="lazy";iframe.allowFullscreen=true;iframe.title="Shared YouTube video";iframe.referrerPolicy="strict-origin-when-cross-origin";iframe.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";iframe.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(post.youtubeId);
@@ -304,12 +314,22 @@ $("profile-form").addEventListener("submit",async e=>{
 $("compose").addEventListener("submit",async e=>{
  e.preventDefault();if(!state.profile||!state.user)return;
  const title=$("title").value.trim(),body=$("body").value.trim(),raw=$("video-url").value.trim();
- let youtubeId=null,twitch="";
- if(raw){youtubeId=getVideoId(raw);if(!youtubeId){try{const u=new URL(raw);if(u.protocol!=="https:"||!["www.twitch.tv","twitch.tv"].includes(u.hostname))throw 0;twitch=twitchName(u.pathname.split("/")[1]);if(!twitch)throw 0;}catch{notice("Share a valid YouTube video or Twitch channel URL.");return;}}}
- if(!title&&!body&&!youtubeId&&!twitch){notice("Add text or a video link.");return;}
+ let youtubeId=null,twitch="",externalMedia="";
+ if(raw){
+  try{
+   const media=parsePwnzMediaLink(raw);
+   if(!media)throw Error("Empty media link");
+   if(media.provider==="youtube")youtubeId=media.youtubeId;
+   else if(media.provider==="twitch")twitch=media.twitch;
+   else externalMedia=media.url;
+  }catch(e){notice(e.message||"Share a valid public video link.");return;}
+ }
+ const finalBody=externalMedia?(body?body+"\n":"")+externalMedia:body;
+ if(finalBody.length>4000){notice("The story and media URL exceed the 4,000 character limit.");return;}
+ if(!title&&!finalBody&&!youtubeId&&!twitch){notice("Add text or a supported video link.");return;}
  const submit=$("post-submit");submit.disabled=true;
  try{
-  await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,title:title.slice(0,140),body:body.slice(0,4000),...(youtubeId?{youtubeId}:{}),...(twitch?{twitch}:{}),status:"published",createdAt:serverTimestamp()});
+  await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,title:title.slice(0,140),body:finalBody,...(youtubeId?{youtubeId}:{}),...(twitch?{twitch}:{}),status:"published",createdAt:serverTimestamp()});
   $("compose").reset();await refreshBadgeProgress();notice("Post published to the PwnZ community.");
  }catch(e){notice("Unable to publish: "+e.message);}finally{submit.disabled=false;}
 });
