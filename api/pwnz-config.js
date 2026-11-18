@@ -19,5 +19,9 @@ module.exports = function handler(req, res) {
   // Fail closed until cross-network rules, authorized domains, and moderator controls are verified.
   const enabled = process.env.PWNZ_SOCIAL_BACKEND_ENABLED === 'true';
   const ready = configured && enabled;
-  return res.status(200).json({ ready, configured, enabled, config: configured ? config : null });
+  // Test-only local file UX. Never expose staging when production or backend is not ready.
+  const mediaLabEnabled = process.env.VERCEL_ENV === "preview" &&
+    process.env.PWNZ_MEDIA_LAB_ENABLED === "true" && ready;
+  return res.status(200).json({ ready, configured, enabled,
+    mediaLabEnabled, config: configured ? config : null });
 };
