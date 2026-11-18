@@ -58,6 +58,12 @@ service cloud.firestore {
       return !('postSection' in data) ||
         (data.postSection is string && data.postSection in ['social','profile','creator','gaming','community']);
     }
+    // Legacy clients omit contentWarning, new clients must use known labels.
+    function optionalContentWarning(data) {
+      return !('contentWarning' in data) ||
+        (data.contentWarning is string
+         && data.contentWarning in ['none','sensitive','sexual-context']);
+    }
     function optionalExternalMedia(data) {
       return (!('externalProvider' in data) && !('externalUrl' in data)) || (
         ('externalProvider' in data) && ('externalUrl' in data)
@@ -232,7 +238,7 @@ service cloud.firestore {
       allow create: if agreementCurrent()
         && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
         && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','postSection','externalProvider','externalUrl','contentWarning','status','createdAt'])
-        && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','contentWarning','status','createdAt'])
+        && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','status','createdAt'])
         && request.resource.data.authorUid == request.auth.uid
         && textWithin(request.resource.data.title, 140)
         && textWithin(request.resource.data.body, 4000)
@@ -241,7 +247,7 @@ service cloud.firestore {
         && optionalTwitch(request.resource.data)
         && optionalPostSection(request.resource.data)
         && optionalExternalMedia(request.resource.data)
-        && request.resource.data.contentWarning in ['none','sensitive','sexual-context']
+        && optionalContentWarning(request.resource.data)
         && request.resource.data.status == 'published'
         && request.resource.data.createdAt == request.time;
       allow update: if false;
