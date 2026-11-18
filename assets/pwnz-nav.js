@@ -15,6 +15,7 @@ const more=[
  ["Creator Community","/community/"],
  ["PwnZ Messenger","/messenger/pwnz/"],
  ["Twitch / Livestreams","/live/"],
+ ["PwnZ tokens · HOPE and PWNZ","/tokens/"],
  ["LightVault (Light of Hope)","https://light-of-hope.net/#/wallet"],
  ["Light of Hope","https://light-of-hope.net/"],
  ["EdenNetwork","https://edennetwork.live/"]
