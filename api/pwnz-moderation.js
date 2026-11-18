@@ -1,9 +1,7 @@
 // PREVIEW-ONLY trusted moderator actions. ANNEAL suggestions are advisory and are
 // never allowed to publish, delete, or hide posts. These actions require a
 // verified Firebase ID token, moderator claim AND explicit UID allowlist.
-const {getApps,initializeApp,cert}=require("firebase-admin/app");
-const {getAuth}=require("firebase-admin/auth");
-const {getFirestore,FieldValue}=require("firebase-admin/firestore");
+
 const ID=/^[A-Za-z0-9]{10,50}(?:__[A-Za-z0-9_-]{1,128})?$/;
 function gate(env=process.env){
  return env.VERCEL_ENV==="preview"&&env.PWNZ_MODERATION_ENABLED==="true"&&
@@ -20,6 +18,9 @@ function respond(res,status,data){
  return res.status(status).json(data);
 }
 function firebase(){
+ const {getApps,initializeApp,cert}=require("firebase-admin/app");
+ const {getAuth}=require("firebase-admin/auth");
+ const {getFirestore,FieldValue}=require("firebase-admin/firestore");
  let app=getApps().find(x=>x.name==="pwnz-moderation");
  if(!app)app=initializeApp({credential:cert({
   projectId:process.env.FIREBASE_ADMIN_PROJECT_ID,
