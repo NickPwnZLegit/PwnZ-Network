@@ -1,13 +1,14 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
+import { checkPwnzMedia, validPwnzClipDuration } from "./media-policy.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false,mediaLabEnabled:false};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -18,6 +19,7 @@ async function init(){
   const info=await response.json();
   if(!info.configured||!info.config){$("auth-panel").hidden=false; notice("Firebase authentication configuration is missing."); return;}
   state.backendReady=Boolean(info.ready);
+  state.mediaLabEnabled=info.mediaLabEnabled===true&&state.backendReady;
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
@@ -57,7 +59,8 @@ function renderSession(){
  $("community-agreement").hidden=!(signed&&state.backendReady&&state.profile&&!state.agreementCurrent&&!state.edenActive);
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
- $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
+ $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);
+ $("media-lab").hidden=!(state.mediaLabEnabled&&signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
  $("identity-state").textContent=state.user?(state.edenActive?(state.verifiedEden?"✓ Eden RealID verified across the ecosystem. Your PwnZ gamer name stays separate.":"✓ Eden RealID linked. Community participation waits for the current agreement."):"Finish creating or linking your Eden RealID before creating a PwnZ profile."):"Choose an ecosystem account path above.";
@@ -336,6 +339,35 @@ $("role-application").addEventListener("submit",async e=>{
   $("role-application").reset();notice("Application saved for administrator review. Email notification status: "+(result.notificationStatus||"unknown")+". Your role remains PwnZ Member.");
  }catch(error){notice("Application not submitted: "+error.message+". You must have a PwnZ profile and a verified email or activated Eden RealID.");}
  finally{submit.disabled=false;}
+});
+
+
+$("media-check").addEventListener("click",async()=>{
+ const output=$("media-result"),file=$("media-file").files?.[0];
+ if(!state.mediaLabEnabled||!state.user||!state.profile||!state.agreementCurrent){
+  output.textContent="Private media testing is not available.";return;
+ }
+ if(!file){output.textContent="Choose a file to check.";return;}
+ const button=$("media-check");button.disabled=true;
+ try{
+  const meta=checkPwnzMedia(file,$("media-scope").value);
+  if(meta.kind==="video"){
+   const objectUrl=URL.createObjectURL(file);
+   try{
+    const seconds=await new Promise((resolve,reject)=>{
+     const video=document.createElement("video");video.preload="metadata";
+     video.onloadedmetadata=()=>resolve(video.duration);
+     video.onerror=()=>reject(new Error("Video metadata cannot be read on this device."));
+     video.src=objectUrl;
+    });
+    if(!validPwnzClipDuration(seconds))throw new Error("Short clips must be no longer than 30 seconds.");
+   }finally{URL.revokeObjectURL(objectUrl);}
+  }
+  output.textContent=meta.kind==="video"
+   ?"Video passed the local preflight. No upload occurred; publishing is still disabled."
+   :"Photo passed the local preflight. No upload occurred; publishing is still disabled.";
+ }catch(error){output.textContent=error.message||"Media preflight failed.";}
+ finally{button.disabled=false;}
 });
 
 init();
