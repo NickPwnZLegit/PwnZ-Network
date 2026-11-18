@@ -16,6 +16,10 @@ jobs:
           node-version: '22'
       - name: Security and release checks
         run: node --test security/release-gates.test.cjs
+      - name: Private media staging policy checks (disabled)
+        run: node --test security/pwnz-media-policy.test.mjs
+      - name: Non-recording live video and quota checks (disabled)
+        run: node --test security/pwnz-live-media-quotas.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js

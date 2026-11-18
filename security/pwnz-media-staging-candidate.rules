@@ -1,0 +1,19 @@
+// REVIEW-ONLY candidate, NOT deployed. Must be reconciled with all other
+// Firebase Storage policy. Approved delivery needs separate server processing.
+rules_version = '2';
+service firebase.storage {
+ match /b/{bucket}/o {
+  match /pwnzMediaStaging/{uid}/{uploadId}/source {
+   allow create: if request.auth != null && request.auth.uid == uid
+    && uploadId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+    && request.resource.size > 0 && request.resource.size <= 45*1024*1024
+    && (request.resource.contentType in ['image/jpeg','image/png','image/webp','video/mp4','video/webm'])
+    && (request.resource.contentType in ['video/mp4','video/webm'] || request.resource.size <= 10*1024*1024)
+    && request.resource.metadata.scope in ['social','profile','creator','community']
+    && request.resource.metadata.kind in ['image','video'];
+   allow get: if request.auth != null && request.auth.uid == uid;
+   allow list, update, delete: if false;
+  }
+  match /{path=**} {allow read,write: if false;}
+ }
+}
