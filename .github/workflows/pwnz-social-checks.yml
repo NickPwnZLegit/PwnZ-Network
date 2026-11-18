@@ -32,6 +32,8 @@ jobs:
         run: node --test security/pwnz-overhaul-section-links.test.mjs
       - name: Content warnings, ANNEAL advisory boundary and human moderation permissions
         run: node --test security/pwnz-advisory-moderation.test.mjs security/pwnz-moderation-permissions.test.mjs
+      - name: Content warning to reporting and human moderator contract
+        run: node --test security/pwnz-content-warning-flow.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
@@ -44,4 +46,5 @@ jobs:
           node --check server/pwnzMediaIntakePolicy.cjs
           node --check assets/pwnz-nav.js
           node --check api/pwnz-moderation.js
+          node --check moderation/moderation.js
 
