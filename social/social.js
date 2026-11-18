@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
+import { parsePwnzMediaLink, normalizePostSection, isSafeExternalCard, PWNZ_SECTIONS } from "./external-media.mjs";
 import { checkPwnzMedia, validPwnzClipDuration } from "./media-policy.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
@@ -63,7 +64,7 @@ function renderSession(){
  $("media-lab").hidden=!(state.mediaLabEnabled&&signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
- $("identity-state").textContent=state.user?(state.edenActive?(state.verifiedEden?"✓ Eden RealID verified across the ecosystem. Your PwnZ gamer name stays separate.":"✓ Eden RealID linked. Community participation waits for the current agreement."):"Finish creating or linking your Eden RealID before creating a PwnZ profile."):"Choose an ecosystem account path above.";
+ $("identity-state").textContent=state.user?(state.edenActive?(state.verifiedEden?"✓ Existing Eden RealID verified. Your PwnZ gamer name remains separate.":"Eden RealID is linked; renew its Light of Hope agreement to unlock participation."):"PwnZ-only account. Create a gamer name and accept the PwnZ community agreement. Eden linking is optional."):"Choose PwnZ sign-up or your existing Eden account.");
  renderBadges();
  if(state.profile){
   $("handle-current").textContent="@"+state.profile.handle;
@@ -73,9 +74,9 @@ function renderSession(){
   $("role-application").hidden=!state.agreementCurrent;
   $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Accept the 30-day PwnZ agreement below to participate.";
  }else{
-  $("handle-entry").hidden=!(signed&&state.backendReady&&state.edenActive);
+  $("handle-entry").hidden=!(signed&&state.backendReady&&(!state.edenActive||state.verifiedEden));
   $("role-application").hidden=true;
-  $("profile-note").textContent=signed?(state.edenActive?"Choose your PwnZ gamer name. It links to your Eden identity without replacing it.":"Create or verify your Eden RealID first."):"Sign in to create a PwnZ profile.";
+  $("profile-note").textContent=signed?(state.edenActive?"Choose your PwnZ gamer name. It links to your Eden identity without replacing it.":"Choose your PwnZ gamer name. You can link Eden RealID later for additional ecosystem features."):"Sign in to create a PwnZ profile.";
  }
  renderPosts();
 }
@@ -137,14 +138,12 @@ function chooseAuthMode(mode){
  if(mode==="eden")state.authAction="signin";
  document.querySelectorAll("[data-auth-mode]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.authMode===mode)));
  $("pwnz-account-actions").hidden=mode==="eden";
- const newEden=$("new-eden-name");
- if(newEden)newEden.hidden=mode==="eden"||state.authAction==="signin";
- $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
+ $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create PwnZ account":"Sign in";
  $("auth-help").textContent=mode==="eden"
-  ?"During the transition, use the email and password already tied to your verified Eden RealID. Hope Labs ZK will replace this bootstrap later without changing your PwnZ profile."
+  ?"During the transition, use the email and password tied to your existing activated Eden RealID. Your PwnZ name will be separate."
   :(state.authAction==="register"
-    ?"Create one Eden RealID and one PwnZ gamer name under the same ecosystem account. Email/password is temporary until ZK enrollment is available."
-    :"Sign in to your existing transitional account. Your Eden identity remains the ecosystem anchor.");
+    ?"Create a PwnZ-only account and gamer name without sharing your legal identity. Eden RealID linking is optional and separate."
+    :"Sign in to your existing PwnZ account. Your social profile is separate from optional Eden identity.");
 }
 document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("click",()=>chooseAuthMode(x.dataset.authMode)));
 document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("click",()=>{
@@ -172,8 +171,10 @@ function watchPosts(){
 }
 function renderPosts(){
  const host=$("posts");host.replaceChildren();
- if(!state.posts.length){host.textContent="No community posts yet. The first creator can start the conversation.";return;}
- state.posts.forEach(post=>{
+ const filter=$("feed-filter").value;
+ const visible=state.posts.filter(post=>{const section=PWNZ_SECTIONS.includes(post.postSection)?post.postSection:"social";return filter==="all"|| (filter==="profile" ? section==="profile"&&post.authorUid===state.user?.uid : filter===section);});
+ if(!visible.length){host.textContent="No matching posts yet. Try another category.";return;}
+ visible.forEach(post=>{
   const card=document.createElement("article");card.className="post";
   const top=document.createElement("div");top.className="post-top";
   const handle=document.createElement("strong");handle.textContent="@"+(post.authorHandle||"creator");
@@ -188,6 +189,12 @@ function renderPosts(){
   const title=document.createElement("h3");title.textContent=post.title||"Creator update";
   const body=document.createElement("p");body.textContent=post.body||"";
   card.append(top,title,body);
+  if(PWNZ_SECTIONS.includes(post.postSection)){const tag=document.createElement("small");tag.className="tag";tag.textContent=post.postSection==="profile"?"Personal profile":"PwnZ "+post.postSection;card.append(tag);}
+  if(isSafeExternalCard(post.externalProvider,post.externalUrl)){
+   const cardLink=document.createElement("a");cardLink.href=post.externalUrl;cardLink.target="_blank";cardLink.rel="noopener noreferrer";
+   cardLink.textContent=post.externalProvider==="instagram"?"▶ Watch on Instagram ↗":"▶ Watch on TikTok ↗";
+   cardLink.setAttribute("aria-label","Open "+post.externalProvider+" video on the original platform");card.append(cardLink);
+  }
   if(post.youtubeId){
    const box=document.createElement("div");box.className="video";
    const iframe=document.createElement("iframe");iframe.loading="lazy";iframe.allowFullscreen=true;iframe.title="Shared YouTube video";iframe.referrerPolicy="strict-origin-when-cross-origin";iframe.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";iframe.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(post.youtubeId);
@@ -248,29 +255,17 @@ async function loadComments(postId,box){
 $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state.auth)return;
  const email=$("email").value.trim(),pass=$("password").value;
  const creating=state.authMode==="pwnz"&&state.authAction==="register";
- const requestedEdenRealId=creating?$("eden-realid").value.trim():"";
  $("auth-submit").disabled=true;
  try{
-   if(creating&&!state.backendReady)throw new Error("New ecosystem registration is paused until Firebase permissions are installed.");
-   if(creating&&!requestedEdenRealId)throw new Error("Create an Eden RealID before continuing.");
-   let credential;
-   if(creating)credential=await createUserWithEmailAndPassword(state.auth,email,pass);
-   else credential=await signInWithEmailAndPassword(state.auth,email,pass);
+   if(creating&&!state.backendReady)throw new Error("PwnZ registration is paused until Firebase security rules are verified.");
    if(creating){
-     const token=await credential.user.getIdToken();
-     const response=await fetch("/api/eden-realid",{
-       method:"POST",
-       headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
-       body:JSON.stringify({action:"reserve-activate",requestedName:requestedEdenRealId})
-     });
-     const result=await response.json().catch(()=>({}));
-     if(!response.ok||!result.ok)throw new Error(result.message||result.error||"Eden RealID creation failed. Your account exists but onboarding is incomplete; sign in again and retry identity setup.");
-     await checkEdenStatus();
-     notice("Eden RealID created. Now choose your unique PwnZ gamer name.");
+     await createUserWithEmailAndPassword(state.auth,email,pass);
+     notice("PwnZ account created. Choose a gamer name, then accept the current 30-day agreement.");
    }else{
+     await signInWithEmailAndPassword(state.auth,email,pass);
      await checkEdenStatus();
-     if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account does not have an activated Eden RealID.");
-     notice(state.edenActive?"Eden account verified. Create your PwnZ gamer name if this is your first visit.":"Signed in. Finish Eden RealID setup before creating a PwnZ profile.");
+     if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account has not activated an Eden RealID. Choose PwnZ sign-in instead.");
+     notice(state.edenActive?"Eden account verified. Create your separate PwnZ gamer name if needed.":"PwnZ account signed in. Complete your profile and agreement to participate.");
    }
    $("password").value="";
    renderSession();
@@ -279,7 +274,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 $("reserve").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.profile||!state.backendReady||!state.edenActive)return;
+ if(!state.user||!state.db||state.profile||!state.backendReady||(state.edenActive&&!state.verifiedEden))return;
  const handle=$("handle").value.trim().toLowerCase(),key=handle;
  if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
@@ -292,7 +287,7 @@ $("reserve").addEventListener("click",async()=>{
    tx.set(profile,{uid:state.user.uid,handle,handleKey:key,role:"member",bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
    tx.set(doc(state.db,"pwnzPublicProfiles",state.user.uid),{uid:state.user.uid,handle,bio:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   });
-  await loadProfile();await refreshBadgeProgress();renderSession();notice("PwnZ gamer name linked to your Eden ecosystem identity.");
+  await loadProfile();await refreshBadgeProgress();renderSession();notice(state.edenActive?"PwnZ gamer name linked to your existing Eden account.":"PwnZ gamer name created. Please accept the current PwnZ community agreement.");
  }catch(e){notice("Name registration failed: "+e.message);}finally{$("reserve").disabled=false;}
 });
 $("profile-form").addEventListener("submit",async e=>{
@@ -307,13 +302,21 @@ $("profile-form").addEventListener("submit",async e=>{
 $("compose").addEventListener("submit",async e=>{
  e.preventDefault();if(!state.profile||!state.user)return;
  const title=$("title").value.trim(),body=$("body").value.trim(),raw=$("video-url").value.trim();
- let youtubeId=null,twitch="";
- if(raw){youtubeId=getVideoId(raw);if(!youtubeId){try{const u=new URL(raw);if(u.protocol!=="https:"||!["www.twitch.tv","twitch.tv"].includes(u.hostname))throw 0;twitch=twitchName(u.pathname.split("/")[1]);if(!twitch)throw 0;}catch{notice("Share a valid YouTube video or Twitch channel URL.");return;}}}
- if(!title&&!body&&!youtubeId&&!twitch){notice("Add text or a video link.");return;}
+ let media=null,section="social";
+ try{media=parsePwnzMediaLink(raw);section=normalizePostSection($("post-section").value);}
+ catch(error){notice(error.message);return;}
+ if(!title&&!body&&!media){notice("Add text or a supported video link.");return;}
  const submit=$("post-submit");submit.disabled=true;
  try{
-  await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,title:title.slice(0,140),body:body.slice(0,4000),...(youtubeId?{youtubeId}:{}),...(twitch?{twitch}:{}),status:"published",createdAt:serverTimestamp()});
-  $("compose").reset();await refreshBadgeProgress();notice("Post published to the PwnZ community.");
+  const source=media?.provider;
+  await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,
+   title:title.slice(0,140),body:body.slice(0,4000),postSection:section,
+   ...(source==="youtube"?{youtubeId:media.youtubeId}:{}),
+   ...(source==="twitch"?{twitch:media.twitch}:{}),
+   ...(source==="instagram"||source==="tiktok"?{externalProvider:source,externalUrl:media.url}:{}),
+   status:"published",createdAt:serverTimestamp()});
+  $("compose").reset();await refreshBadgeProgress();renderPosts();
+  notice("Post published to your "+section+" feed. External videos remain hosted by their original providers.");
  }catch(e){notice("Unable to publish: "+e.message);}finally{submit.disabled=false;}
 });
 $("role-application").addEventListener("submit",async e=>{
@@ -369,5 +372,12 @@ $("media-check").addEventListener("click",async()=>{
  }catch(error){output.textContent=error.message||"Media preflight failed.";}
  finally{button.disabled=false;}
 });
+
+const requestedSection=new URLSearchParams(location.search).get("section");
+if(PWNZ_SECTIONS.includes(requestedSection)){
+ $("post-section").value=requestedSection;
+ $("feed-filter").value=requestedSection;
+}
+$("feed-filter").addEventListener("change",()=>renderPosts());
 
 init();
