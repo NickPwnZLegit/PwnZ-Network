@@ -8,7 +8,7 @@ const page=read("social/index.html"),code=read("social/social.js"),rules=read("s
 test("compose has explicit content warning choices",()=>assert.match(page,/id="post-content-warning"/));
 test("moderation warning label can be assigned",()=>assert.match(code,/contentWarning=normalizeWarning/));
 test("public post writes an approved warning value",()=>assert.match(code,/postSection:section,contentWarning,/));
-test("Firestore requires content warning",()=>assert.match(rules,/data\.contentWarning in \['none','sensitive','sexual-context'\]/));
+test("Firestore accepts legacy posts and validates optional warnings",()=>assert.match(rules,/optionalContentWarning\(request\.resource\.data\)/));
 test("sensitive posts use blur/inert until viewer chooses",()=>{assert.match(code,/shouldBlur\(post\)/);assert.match(code,/setAttribute\("inert",""\)/);assert.match(code,/removeAttribute\("inert"\)/);});
 test("reports include explicit and child-safety flags",()=>{assert.match(rules,/'unsafe-minors'/);assert.match(rules,/'explicit'/);assert.match(rules,/'sexual'/);});
 test("client cannot hide or reinstate posts by changing Firestore status",()=>assert.match(rules,/allow update: if false;/));
