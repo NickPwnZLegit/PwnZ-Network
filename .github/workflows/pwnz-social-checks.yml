@@ -24,9 +24,19 @@ jobs:
         run: node --test security/pwnz-media-preflight-preview.test.mjs
       - name: Media Storage candidate deny-by-default checks
         run: node --test security/pwnz-media-rules-default-deny.test.mjs
+      - name: Video provider links and scoped publishing validation
+        run: node --test security/pwnz-external-media.test.mjs
+      - name: Preview-only private media intake, account eligibility and quotas
+        run: node --test security/pwnz-private-media-intake.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
           node --check members/members.js
           node --check messenger/pwnz/app.js
           node --check messenger/messenger.js
+          node --check social/external-media.mjs
+          node --check social/media-staging.mjs
+          node --check api/pwnz-media-intake.js
+          node --check server/pwnzMediaIntakePolicy.cjs
+          node --check assets/pwnz-nav.js
+
