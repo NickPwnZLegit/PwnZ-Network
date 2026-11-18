@@ -35,16 +35,21 @@ test("Public gamer cards and mutual-follow chat have guarded collections",()=>{
  assert.match(app,/pwnzBlocks/);
 });
 
-test("PwnZ onboarding is bound to shared Eden identity",()=>{
- const social=get("social/social.js"),page=get("social/index.html"),proxy=get("api/eden-realid.js");
- assert.match(social,/\/api\/eden-realid/);
- assert.match(social,/reserve-activate/);
- assert.match(social,/!state\.edenActive/);
- assert.match(page,/Create Eden RealID/);
- assert.match(page,/Hope Labs ZK/);
+test("PwnZ-only membership does not require Eden identity creation",()=>{
+ const social=get("social/social.js"),page=get("social/index.html");
+ assert.match(social,/createUserWithEmailAndPassword/);
+ assert.doesNotMatch(social,/requestedEdenRealId/);
+ assert.match(page,/New PwnZ Member/);
+ assert.match(page,/Existing Eden RealID/);
+ assert.match(social,/pwnzAgreements/);
+ assert.match(social,/!state\.edenActive\|\|state\.verifiedEden/);
+});
+test("Separate Eden identity service remains gated and available for future linking",()=>{
+ const proxy=get("api/eden-realid.js");
  assert.match(proxy,/light-of-hope\.net\/api\/eden-realid/);
  assert.match(proxy,/PWNZ_ECOSYSTEM_IDENTITY_ENABLED/);
 });
+
 test("Hope Labs infrastructure attribution is present",()=>{
  const home=get("index.html"),social=get("social/index.html");
  assert.match(home,/powered by Hope Labs/i);
