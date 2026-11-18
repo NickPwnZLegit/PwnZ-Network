@@ -39,7 +39,7 @@ module.exports=async function handler(req,res){
   const [profile,edenProfile,edenOwner,edenAgreement,pwnzAgreement]=await db.getAll(
     db.doc("pwnzProfiles/"+uid),db.doc("profiles/"+uid),db.doc("edenRealIdOwners/"+uid),
     db.doc("agreements/"+uid),db.doc("pwnzAgreements/"+uid));
-  if(!agreementAllows({pwnzProfile:profile.data(),edenProfile:edenProfile.data(),
+  if(!profile.exists||profile.data()?.uid!==uid||!agreementAllows({pwnzProfile:profile.data(),edenProfile:edenProfile.data(),
     edenOwner:edenOwner.data(),edenAgreement:edenAgreement.data(),pwnzAgreement:pwnzAgreement.data()}))
     throw Object.assign(new Error("Active PwnZ profile and current agreement required."),{status:403});
   const input=req.body??{};
@@ -69,7 +69,7 @@ module.exports=async function handler(req,res){
    if(item.status!=="reserved"||item.expiresAt?.toMillis?.()<Date.now())
     throw Object.assign(new Error("Upload reservation expired or closed."),{status:409});
    const [metadata]=await bucket.file(item.storagePath).getMetadata();
-   if(Number(metadata.size)!==item.expectedBytes||metadata.contentType!==item.mimeType)
+   if(Number(metadata.size)!==item.expectedBytes||metadata.contentType!==item.mimeType||metadata.metadata?.scope!==item.scope||metadata.metadata?.kind!==item.kind)
     throw Object.assign(new Error("Uploaded media does not match the reservation."),{status:422});
    // Client MIME and metadata do not establish file safety. Keep private and unreviewed.
    await db.runTransaction(async tx=>{
