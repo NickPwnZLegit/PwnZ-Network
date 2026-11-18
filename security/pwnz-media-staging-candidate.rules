@@ -1,13 +1,34 @@
-// REVIEW-ONLY: fail closed. PwnZ currently has no trusted, reservation-bound
-// server upload intake or screening/approval worker. Do not deploy or enable.
-// Candidate revision must be tested in Storage and Firestore emulators before
-// ANY client-owned staging reads/writes are permitted.
+// REVIEW ONLY: NOT DEPLOYED. Requires Firebase Storage/Firestore emulator
+// and explicit IAM permission for cross-product Firestore rule access.
+// Client uploads are only created against a trusted, unexpired reservation;
+// nothing is publicly readable or publishable from this staging directory.
 rules_version = '2';
 service firebase.storage {
  match /b/{bucket}/o {
-  match /pwnzMediaStaging/{uid}/{uploadId}/source {
-   allow create, get, list, update, delete: if false;
+  function reservationMatches(uid, uploadId) {
+   let r=firestore.get(/databases/(default)/documents/pwnzMediaReservations/$(uploadId)).data;
+   return r.uid == uid
+     && r.status == 'reserved'
+     && r.storagePath == 'pwnzMediaStaging/' + uid + '/' + uploadId + '/source'
+     && request.resource.size == r.expectedBytes
+     && request.resource.contentType == r.mimeType
+     && request.resource.metadata.scope == r.scope
+     && request.resource.metadata.kind == r.kind
+     && request.time < r.expiresAt;
   }
-  match /{other=**} {allow read,write: if false;}
+  match /pwnzMediaStaging/{uid}/{uploadId}/source {
+   allow create: if request.auth != null && request.auth.uid == uid
+    && uploadId.matches('^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')
+    && request.resource.size > 0 && request.resource.size <= 45*1024*1024
+    && (request.resource.contentType in ['image/jpeg','image/png','image/webp','video/mp4','video/webm'])
+    && (request.resource.contentType in ['video/mp4','video/webm'] || request.resource.size <= 10*1024*1024)
+    && request.resource.metadata.scope in ['social','profile','creator','gaming','community']
+    && request.resource.metadata.kind in ['image','video']
+    && reservationMatches(uid,uploadId);
+   // A Firebase Storage download-token URL is not issued by this code path.
+   // Even the owner cannot request a download before independent moderation.
+   allow get, list, update, delete: if false;
+  }
+  match /{other=**} {allow read, write: if false;}
  }
 }
