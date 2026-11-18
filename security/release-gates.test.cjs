@@ -35,14 +35,15 @@ test("Public gamer cards and mutual-follow chat have guarded collections",()=>{
  assert.match(app,/pwnzBlocks/);
 });
 
-test("PwnZ-only membership does not require Eden identity creation",()=>{
- const social=get("social/social.js"),page=get("social/index.html");
+test("New gamer enrollment requires Eden registration and unique PwnZ handle",()=>{
+ const social=get("social/social.js"),page=get("social/index.html"),rules=get("security/pwnz-social.rules");
  assert.match(social,/createUserWithEmailAndPassword/);
- assert.doesNotMatch(social,/requestedEdenRealId/);
- assert.match(page,/New PwnZ Member/);
+ assert.match(social,/sharedEdenRequest/);
+ assert.match(page,/New PwnZ gamer/);
  assert.match(page,/Existing Eden RealID/);
  assert.match(social,/pwnzAgreements/);
- assert.match(social,/!state\.edenActive\|\|state\.verifiedEden/);
+ assert.match(social,/state\.profile\|\|!state\.backendReady\|\|!state\.verifiedEden/);
+ assert.match(rules,/function pwnzIdentityEnrollment\(\)\s*\{\s*return edenAgreementCurrent\(\);/);
 });
 test("Separate Eden identity service remains gated and available for future linking",()=>{
  const proxy=get("api/eden-realid.js");
