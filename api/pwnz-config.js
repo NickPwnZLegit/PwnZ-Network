@@ -22,6 +22,9 @@ module.exports = function handler(req, res) {
   // Test-only local file UX. Never expose staging when production or backend is not ready.
   const mediaLabEnabled = process.env.VERCEL_ENV === "preview" &&
     process.env.PWNZ_MEDIA_LAB_ENABLED === "true" && ready;
+  // Keep upload intake disabled unless preview, server secrets and bucket match.
+  const {enabled:privateMediaIntakeEnabled}=require("../server/pwnzMediaIntakePolicy.cjs");
+  const mediaStagingEnabled=mediaLabEnabled && privateMediaIntakeEnabled();
   return res.status(200).json({ ready, configured, enabled,
-    mediaLabEnabled, config: configured ? config : null });
+    mediaLabEnabled, mediaStagingEnabled, config: configured ? config : null });
 };
