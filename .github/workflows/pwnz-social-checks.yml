@@ -18,6 +18,8 @@ jobs:
         run: node --test security/release-gates.test.cjs
       - name: HOPE and PWNZ token policy
         run: node --test security/pwnz-token-scope.test.mjs
+      - name: Trusted external media link contract
+        run: node --test security/pwnz-external-video-links-release.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
