@@ -2,7 +2,7 @@
 if(document.getElementById("pwnz-global-nav"))return;
 const path=location.pathname;
 const entries=[["Home","⌂","/"],["Social","✦","/social/"],["Members","♧","/members/"],["Gaming","🎮","/arena/"],["Creators","◈","/community/"],["Messages","✉","/messenger/pwnz/"]];
-const extra=[["My Profile","/profile/"],["PwnZ Messenger","/messenger/pwnz/"],["Eden Messenger","/messenger/"],["Twitch Live","/live/"],["Ecosystem","/ecosystem/"],["Light of Hope","https://light-of-hope.net/"]];
+const extra=[["My Profile","/profile/"],["PwnZ Messenger","/messenger/pwnz/"],["Eden Messenger","/messenger/"],["Twitch Live","/live/"],["PwnZ Tokens · HOPE and PWNZ","/tokens/"],["Ecosystem","/ecosystem/"],["Light of Hope","https://light-of-hope.net/"]];
 const active=href=>href==="/"?path==="/":path.startsWith(href);
 const nav=document.createElement("nav");nav.id="pwnz-global-nav";nav.setAttribute("aria-label","PwnZ main navigation");
 for(const [label,icon,href] of entries){const a=document.createElement("a");a.href=href;a.title=label;const sym=document.createElement("span");sym.className="pwnz-nav-icon";sym.setAttribute("aria-hidden","true");sym.textContent=icon;const name=document.createElement("span");name.textContent=label;a.append(sym,name);if(active(href))a.setAttribute("aria-current","page");nav.append(a);}

@@ -16,6 +16,8 @@ jobs:
           node-version: '22'
       - name: Security and release checks
         run: node --test security/release-gates.test.cjs
+      - name: HOPE and PWNZ token policy
+        run: node --test security/pwnz-token-scope.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
