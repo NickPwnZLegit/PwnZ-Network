@@ -5,6 +5,7 @@ import {preparePwnzMediaUpload} from "./media-staging.mjs";
 import * as storageSdk from "https://www.gstatic.com/firebasejs/12.19.0/firebase-storage.js";
 import { parsePwnzMediaLink, normalizePostSection, isSafeExternalCard, PWNZ_SECTIONS } from "./external-media.mjs";
 import { checkPwnzMedia, validPwnzClipDuration } from "./media-policy.mjs";
+import { normalizeWarning, normalizeReportReason, shouldBlur, REPORT_REASONS } from "./moderation-policy.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
@@ -197,20 +198,39 @@ function renderPosts(){
   }
   const title=document.createElement("h3");title.textContent=post.title||"Creator update";
   const body=document.createElement("p");body.textContent=post.body||"";
-  card.append(top,title,body);
+  const content=document.createElement("div");content.className="pwnz-post-content";content.append(title,body);
+  card.append(top,content);
   if(PWNZ_SECTIONS.includes(post.postSection)){const tag=document.createElement("small");tag.className="tag";tag.textContent=post.postSection==="profile"?"Personal profile":"PwnZ "+post.postSection;card.append(tag);}
   if(isSafeExternalCard(post.externalProvider,post.externalUrl)){
    const cardLink=document.createElement("a");cardLink.href=post.externalUrl;cardLink.target="_blank";cardLink.rel="noopener noreferrer";
    cardLink.textContent=post.externalProvider==="instagram"?"▶ Watch on Instagram ↗":"▶ Watch on TikTok ↗";
-   cardLink.setAttribute("aria-label","Open "+post.externalProvider+" video on the original platform");card.append(cardLink);
+   cardLink.setAttribute("aria-label","Open "+post.externalProvider+" video on the original platform");content.append(cardLink);
   }
   if(post.youtubeId){
    const box=document.createElement("div");box.className="video";
    const iframe=document.createElement("iframe");iframe.loading="lazy";iframe.allowFullscreen=true;iframe.title="Shared YouTube video";iframe.referrerPolicy="strict-origin-when-cross-origin";iframe.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";iframe.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(post.youtubeId);
-   box.append(iframe);card.append(box);
+   box.append(iframe);content.append(box);
   }
   if(post.twitch){
-   const link=document.createElement("a");link.href="/live/?channel="+encodeURIComponent(post.twitch);link.textContent="📡 Watch @"+post.twitch+" on Twitch";card.append(link);
+   const link=document.createElement("a");link.href="/live/?channel="+encodeURIComponent(post.twitch);link.textContent="📡 Watch @"+post.twitch+" on Twitch";content.append(link);
+  }
+  if(shouldBlur(post)){
+   const cover=document.createElement("div");cover.className="pwnz-sensitive-cover";
+   const reason=document.createElement("p");reason.textContent=post.contentWarning==="sexual-context"
+     ?"Mature or sexual-health discussion. Hidden by default.":"Sensitive content. Hidden by default.";
+   const reveal=document.createElement("button");reveal.type="button";reveal.className="mini";
+   reveal.textContent="Show sensitive content";reveal.setAttribute("aria-expanded","false");
+   content.classList.add("pwnz-sensitive-content");
+   content.setAttribute("inert","");
+   content.setAttribute("aria-hidden","true");
+   reveal.addEventListener("click",()=>{
+     const isHidden=content.hasAttribute("inert");
+     if(isHidden){content.removeAttribute("inert");content.removeAttribute("aria-hidden");content.classList.remove("pwnz-sensitive-content");}
+     else{content.setAttribute("inert","");content.setAttribute("aria-hidden","true");content.classList.add("pwnz-sensitive-content");}
+     reveal.setAttribute("aria-expanded",String(isHidden));
+     reveal.textContent=isHidden?"Hide sensitive content":"Show sensitive content";
+   });
+   cover.append(reason,reveal);card.insertBefore(cover,content);
   }
   const actions=document.createElement("div");actions.className="post-actions";
   const comment=document.createElement("button");comment.type="button";comment.className="mini";comment.textContent="Comments";
@@ -236,10 +256,11 @@ function renderPosts(){
    const report=document.createElement("button");report.type="button";report.className="mini";report.textContent="Report";
    report.setAttribute("aria-label","Report this post for moderation");
    report.addEventListener("click",async()=>{
-    const answer=window.prompt("Choose a report reason: spam, harassment, privacy, copyright, or other.");
+    const answer=window.prompt("Choose a report reason: "+REPORT_REASONS.join(", ")+".");
     if(answer===null)return;
-    const reason=answer.trim().toLowerCase();
-    if(!["spam","harassment","privacy","copyright","other"].includes(reason)){notice("Choose one of the listed report reasons.");return;}
+    let reason;
+    try{reason=normalizeReportReason(answer.trim().toLowerCase());}
+    catch{notice("Choose one of the listed report reasons.");return;}
     report.disabled=true;
     try{
      await setDoc(doc(state.db,"pwnzPostReports",post.id+"__"+state.user.uid),
@@ -328,9 +349,12 @@ $("profile-form").addEventListener("submit",async e=>{
 $("compose").addEventListener("submit",async e=>{
  e.preventDefault();if(!state.profile||!state.user)return;
  const title=$("title").value.trim(),body=$("body").value.trim(),raw=$("video-url").value.trim();
- let media=null,section="social";
- try{media=parsePwnzMediaLink(raw);section=normalizePostSection($("post-section").value);}
- catch(error){notice(error.message);return;}
+ let media=null,section="social",contentWarning="none";
+ try{
+  media=parsePwnzMediaLink(raw);
+  section=normalizePostSection($("post-section").value);
+  contentWarning=normalizeWarning($("post-content-warning").value);
+ }catch(error){notice(error.message);return;}
  const personalFile=$("post-file").files?.[0];
  if(!title&&!body&&!media&&!personalFile){notice("Add text, a supported video link, or a private photo/video file.");return;}
  const submit=$("post-submit");submit.disabled=true;
@@ -353,7 +377,7 @@ $("compose").addEventListener("submit",async e=>{
   }
   const source=media?.provider;
   await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,
-   title:title.slice(0,140),body:body.slice(0,4000),postSection:section,
+   title:title.slice(0,140),body:body.slice(0,4000),postSection:section,contentWarning,
    ...(source==="youtube"?{youtubeId:media.youtubeId}:{}),
    ...(source==="twitch"?{twitch:media.twitch}:{}),
    ...(source==="instagram"||source==="tiktok"?{externalProvider:source,externalUrl:media.url}:{}),
