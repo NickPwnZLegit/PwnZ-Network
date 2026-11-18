@@ -36,6 +36,8 @@ jobs:
         run: node --test security/pwnz-content-warning-flow.test.mjs
       - name: Shared Eden RealID gateway and gamer-name registration checks
         run: node --test security/pwnz-shared-realid-gateway.test.mjs security/pwnz-eden-login-flow.test.mjs
+      - name: PwnZ token scope and no-wallet-actions contract
+        run: node --test security/pwnz-token-scope.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
