@@ -324,7 +324,7 @@ $("compose").addEventListener("submit",async e=>{
    else externalMedia=media.url;
   }catch(e){notice(e.message||"Share a valid public video link.");return;}
  }
- const finalBody=externalMedia?(body?body+"\\n":"")+externalMedia:body;
+ const finalBody=externalMedia?(body?body+"\n":"")+externalMedia:body;
  if(finalBody.length>4000){notice("The story and media URL exceed the 4,000 character limit.");return;}
  if(!title&&!finalBody&&!youtubeId&&!twitch){notice("Add text or a supported video link.");return;}
  const submit=$("post-submit");submit.disabled=true;
