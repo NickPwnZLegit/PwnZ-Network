@@ -230,6 +230,23 @@ function renderPosts(){
    actions.append(heart);
   }
   actions.append(comment);
+  if(state.user&&state.profile&&state.agreementCurrent&&post.authorUid!==state.user.uid){
+   const report=document.createElement("button");report.type="button";report.className="mini";report.textContent="Report";
+   report.setAttribute("aria-label","Report this post for moderation");
+   report.addEventListener("click",async()=>{
+    const answer=window.prompt("Choose a report reason: spam, harassment, privacy, copyright, or other.");
+    if(answer===null)return;
+    const reason=answer.trim().toLowerCase();
+    if(!["spam","harassment","privacy","copyright","other"].includes(reason)){notice("Choose one of the listed report reasons.");return;}
+    report.disabled=true;
+    try{
+     await setDoc(doc(state.db,"pwnzPostReports",post.id+"__"+state.user.uid),
+       {reporterUid:state.user.uid,postId:post.id,reason,status:"pending",createdAt:serverTimestamp()});
+     notice("Report submitted to the private moderation queue.");
+    }catch(e){notice("Report not submitted: "+e.message);}
+    finally{report.disabled=false;}
+   });actions.append(report);
+  }
   if(state.user?.uid===post.authorUid){const del=document.createElement("button");del.type="button";del.className="mini";del.textContent="Delete";del.addEventListener("click",async()=>{if(!confirm("Delete your post?"))return;try{await deleteDoc(doc(state.db,"pwnzPosts",post.id));await refreshBadgeProgress();notice("Post deleted.");}catch(e){notice(e.message);}});actions.append(del);}
   card.append(actions,commentsBox);host.append(card);
  });
