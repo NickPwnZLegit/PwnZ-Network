@@ -1,0 +1,12 @@
+{
+  "name": "pwnz-network",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Static PwnZ network with gated serverless media intake",
+  "scripts": {
+    "test:media": "node --test security/pwnz-*.test.mjs"
+  },
+  "dependencies": {
+    "firebase-admin": "14.3.0"
+  }
+}
