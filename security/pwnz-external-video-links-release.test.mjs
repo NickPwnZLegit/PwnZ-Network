@@ -1,0 +1,17 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {parsePwnzMediaLink,extractPwnzMediaCards} from "../social/external-media.mjs";
+const src=readFileSync(new URL("../social/social.js",import.meta.url),"utf8");
+const html=readFileSync(new URL("../social/index.html",import.meta.url),"utf8");
+test("YouTube canonical video",()=>assert.equal(parsePwnzMediaLink("https://youtu.be/abcdEFG1234").youtubeId,"abcdEFG1234"));
+test("Twitch canonical channel",()=>assert.equal(parsePwnzMediaLink("https://twitch.tv/stream123").twitch,"stream123"));
+test("TikTok canonical URL",()=>assert.equal(parsePwnzMediaLink("https://www.tiktok.com/@creator/video/1234567890123456789").provider,"tiktok"));
+test("Instagram Reel canonical URL",()=>assert.equal(parsePwnzMediaLink("https://www.instagram.com/reel/AaBbCcDd1/").provider,"instagram"));
+test("reject arbitrary video providers",()=>assert.throws(()=>parsePwnzMediaLink("https://example.com/watch/abc")));
+test("reject URL credentials",()=>assert.throws(()=>parsePwnzMediaLink("https://me:pass@instagram.com/reel/AaBbCcDd1/")));
+test("extract up to three safe URLs and deduplicate",()=>{const text="Watch https://www.instagram.com/reel/AaBbCcDd1/ again https://www.instagram.com/reel/AaBbCcDd1/ and https://www.tiktok.com/@creator/video/1234567890123456789";assert.equal(extractPwnzMediaCards(text).length,2);});
+test("no arbitrary iframe or third-party script injection",()=>assert.ok(!/tiktok\.com\/embed|instagram\.com\/embed|innerHTML\s*=/.test(src)));
+test("current post schema remains unchanged",()=>{assert.match(src,/body:finalBody/);assert.ok(!src.includes("externalMedia:externalMedia"));});
+test("third party content is an outbound user-controlled click",()=>{assert.match(src,/link\.target="_blank"/);assert.match(src,/link\.rel="noopener noreferrer"/);});
+test("four supported providers shown on composer",()=>assert.match(html,/YouTube, Twitch, TikTok or Instagram/));
