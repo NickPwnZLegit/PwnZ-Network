@@ -1,0 +1,16 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {createRequire} from "node:module";
+const require=createRequire(import.meta.url);
+const {enabled,bodyInput}=require("../api/pwnz-eden-registry.js")._test;
+const env={VERCEL_ENV:"preview",PWNZ_EDEN_REGISTRY_ENABLED:"true",PWNZ_FIREBASE_PROJECT_ID:"synthetic-shared",EDEN_SHARED_FIREBASE_PROJECT_ID:"synthetic-shared"};
+test("only preview can register",()=>assert.equal(enabled({...env,VERCEL_ENV:"production"}),false));
+test("registry requires explicit opt in",()=>assert.equal(enabled({...env,PWNZ_EDEN_REGISTRY_ENABLED:"false"}),false));
+test("Firebase project parity mandatory",()=>assert.equal(enabled({...env,PWNZ_FIREBASE_PROJECT_ID:"other"}),false));
+test("matched projects may be enabled",()=>assert.equal(enabled(env),true));
+test("only exact action allowed",()=>assert.throws(()=>bodyInput({action:"wallet-transfer"})));
+test("protects empty Eden names",()=>assert.throws(()=>bodyInput({action:"reserve-activate",requestedName:""})));
+test("valid canonical name forwarded",()=>assert.deepEqual(bodyInput({action:"reserve-activate",requestedName:"  cosmiclight  "}),{action:"reserve-activate",requestedName:"cosmiclight"}));
+test("rejects object injection",()=>assert.throws(()=>bodyInput({action:"check",requestedName:{uid:"victim"}})));
+test("does not send arbitrary properties",()=>assert.deepEqual(bodyInput({action:"reserve-activate",requestedName:"CosmicLight",uid:"victim",roles:["admin"]}),{action:"reserve-activate",requestedName:"CosmicLight"}));
+test("legacy validation has no name parameter",()=>assert.deepEqual(bodyInput({action:"validate-legacy"}),{action:"validate-legacy"}));
