@@ -18,3 +18,12 @@ Vercel confirms the existing PwnZ production deployment is READY and attached to
 - [ ] Manual mobile and desktop end-to-end QA and explicit owner sign-off.
 
 No real media, payments, tokens, identity credentials, streaming provider keys or member data are stored in this repository.
+
+## Creator Media Lab update (2026-11-18)
+**Launch status: HOLD.** The PwnZ social composer now has a *separate, hidden* local-only file preflight panel. It checks selected image/video metadata, the proposed 45 MiB / 30s video limit, and intended social/profile/creator/community scope without transferring files to Firebase or publishing a post.
+
+The Media Lab is structurally unavailable in production: `PWNZ_MEDIA_LAB_ENABLED=true` and `PWNZ_SOCIAL_BACKEND_ENABLED=true` are insufficient unless `VERCEL_ENV=preview`. It also requires an authenticated PwnZ profile and the current signed agreement. The existing external YouTube/Twitch sharing and social posting paths remain unchanged.
+
+**Still required:** repair/verify complete account and RealID linking flow; trusted authenticated PwnZ upload-reservation backend; Storage rules + Firebase emulator; media scanning/transcoding/review and moderated delivery; downloads/deletion; monthly usage counters, optional subscriptions and cost brakes; real live provider with recording disabled; mobile testing. No media backend credentials or public upload policies were changed.
+
+The branch remains a **draft release candidate**, not a public media-launch authorization. Do not merge to main, enable billing, or switch production domains until these gates are satisfied.
