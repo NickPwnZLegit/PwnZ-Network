@@ -20,6 +20,8 @@ jobs:
         run: node --test security/pwnz-media-policy.test.mjs
       - name: Non-recording live video and quota checks (disabled)
         run: node --test security/pwnz-live-media-quotas.test.mjs
+      - name: Preview-only media preflight cannot enable production uploads
+        run: node --test security/pwnz-media-preflight-preview.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
