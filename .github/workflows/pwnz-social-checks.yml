@@ -30,6 +30,8 @@ jobs:
         run: node --test security/pwnz-private-media-intake.test.mjs
       - name: Compact overhaul and all-section media navigation checks
         run: node --test security/pwnz-overhaul-section-links.test.mjs
+      - name: Content warnings, ANNEAL advisory boundary and human moderation permissions
+        run: node --test security/pwnz-advisory-moderation.test.mjs security/pwnz-moderation-permissions.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
@@ -41,4 +43,5 @@ jobs:
           node --check api/pwnz-media-intake.js
           node --check server/pwnzMediaIntakePolicy.cjs
           node --check assets/pwnz-nav.js
+          node --check api/pwnz-moderation.js
 
