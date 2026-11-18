@@ -16,6 +16,8 @@ jobs:
           node-version: '22'
       - name: Security and release checks
         run: node --test security/release-gates.test.cjs
+      - name: Validate nonrecording stream and media quota rules
+        run: node --test security/pwnz-live-media-quotas.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
