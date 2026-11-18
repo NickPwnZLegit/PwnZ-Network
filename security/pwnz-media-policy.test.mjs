@@ -1,0 +1,16 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {checkPwnzMedia,validPwnzClipDuration,canShowPwnzAsset,PWNZ_MEDIA} from "../social/media-policy.mjs";
+test("accepted image",()=>assert.equal(checkPwnzMedia({type:"image/png",size:100},"profile").kind,"image"));
+test("accepted video",()=>assert.equal(checkPwnzMedia({type:"video/mp4",size:100},"social").kind,"video"));
+test("unsupported scope rejected",()=>assert.throws(()=>checkPwnzMedia({type:"image/png",size:100},"identity")));
+test("unsupported type rejected",()=>assert.throws(()=>checkPwnzMedia({type:"text/html",size:100},"social")));
+test("empty rejected",()=>assert.throws(()=>checkPwnzMedia({type:"video/webm",size:0},"social")));
+test("oversized rejected",()=>assert.throws(()=>checkPwnzMedia({type:"video/webm",size:PWNZ_MEDIA.clipBytes+1},"social")));
+test("30s acceptable",()=>assert.equal(validPwnzClipDuration(30),true));
+test("31s unacceptable",()=>assert.equal(validPwnzClipDuration(31),false));
+test("bad durations denied",()=>assert.equal(validPwnzClipDuration(Infinity),false));
+test("unreviewed rejected",()=>assert.equal(canShowPwnzAsset({status:"pending-review",scanStatus:"passed",authorized:true,url:"https://example.org/x"}),false));
+test("unscreened rejected",()=>assert.equal(canShowPwnzAsset({status:"approved",scanStatus:"pending",authorized:true,url:"https://example.org/x"}),false));
+test("unsafe URL rejected",()=>assert.equal(canShowPwnzAsset({status:"approved",scanStatus:"passed",authorized:true,url:"javascript:alert(1)"}),false));
+test("fully reviewed accepted",()=>assert.equal(canShowPwnzAsset({status:"approved",scanStatus:"passed",authorized:true,url:"https://example.org/x"}),true));

@@ -16,9 +16,40 @@ jobs:
           node-version: '22'
       - name: Security and release checks
         run: node --test security/release-gates.test.cjs
+      - name: Private media staging policy checks (disabled)
+        run: node --test security/pwnz-media-policy.test.mjs
+      - name: Non-recording live video and quota checks (disabled)
+        run: node --test security/pwnz-live-media-quotas.test.mjs
+      - name: Preview-only media preflight cannot enable production uploads
+        run: node --test security/pwnz-media-preflight-preview.test.mjs
+      - name: Media Storage candidate deny-by-default checks
+        run: node --test security/pwnz-media-rules-default-deny.test.mjs
+      - name: Video provider links and scoped publishing validation
+        run: node --test security/pwnz-external-media.test.mjs
+      - name: Preview-only private media intake, account eligibility and quotas
+        run: node --test security/pwnz-private-media-intake.test.mjs
+      - name: Compact overhaul and all-section media navigation checks
+        run: node --test security/pwnz-overhaul-section-links.test.mjs
+      - name: Content warnings, ANNEAL advisory boundary and human moderation permissions
+        run: node --test security/pwnz-advisory-moderation.test.mjs security/pwnz-moderation-permissions.test.mjs
+      - name: Content warning to reporting and human moderator contract
+        run: node --test security/pwnz-content-warning-flow.test.mjs
+      - name: Shared Eden RealID gateway and gamer-name registration checks
+        run: node --test security/pwnz-shared-realid-gateway.test.mjs security/pwnz-eden-login-flow.test.mjs
+      - name: PwnZ token scope and no-wallet-actions contract
+        run: node --test security/pwnz-token-scope.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
           node --check members/members.js
           node --check messenger/pwnz/app.js
           node --check messenger/messenger.js
+          node --check social/external-media.mjs
+          node --check social/media-staging.mjs
+          node --check api/pwnz-media-intake.js
+          node --check server/pwnzMediaIntakePolicy.cjs
+          node --check assets/pwnz-nav.js
+          node --check api/pwnz-moderation.js
+          node --check api/pwnz-eden-registry.js
+          node --check moderation/moderation.js
+

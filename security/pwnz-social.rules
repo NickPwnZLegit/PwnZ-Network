@@ -31,10 +31,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.version == 'pwnz-2026.10.30.1'
         && get(/databases/$(database)/documents/pwnzAgreements/$(request.auth.uid)).data.expiresAt > request.time;
     }
-    // Identity may be reserved before a PwnZ-only agreement.
-    // Verified Eden members must still have the current Light of Hope agreement.
+    // New gamer handles require the shared Eden registry and the current
+    // Light of Hope agreement. Existing PwnZ-only profiles may still sign in
+    // under their prior agreement for controlled migration; this change
+    // does not delete or reassign any existing profile or handle.
     function pwnzIdentityEnrollment() {
-      return signedIn() && (!edenMember() || edenAgreementCurrent());
+      return edenAgreementCurrent();
     }
     function agreementCurrent() {
       return signedIn() && (edenMember() ? edenAgreementCurrent() : pwnzAgreementCurrent());
@@ -53,6 +55,30 @@ service cloud.firestore {
     }
     function optionalTwitch(data) {
       return !('twitch' in data) || (data.twitch is string && data.twitch.matches('^[A-Za-z0-9_]{3,25}$'));
+    }
+    function optionalPostSection(data) {
+      return !('postSection' in data) ||
+        (data.postSection is string && data.postSection in ['social','profile','creator','gaming','community']);
+    }
+    // Legacy clients omit contentWarning, new clients must use known labels.
+    function optionalContentWarning(data) {
+      return !('contentWarning' in data) ||
+        (data.contentWarning is string
+         && data.contentWarning in ['none','sensitive','sexual-context']);
+    }
+    function optionalExternalMedia(data) {
+      return (!('externalProvider' in data) && !('externalUrl' in data)) || (
+        ('externalProvider' in data) && ('externalUrl' in data)
+        && !('youtubeId' in data) && !('twitch' in data)
+        && data.externalProvider is string && data.externalUrl is string
+        && data.externalUrl.size() <= 2048
+        && (
+          (data.externalProvider == 'instagram'
+           && data.externalUrl.matches('^https://www[.]instagram[.]com/(reel|p|tv)/[A-Za-z0-9_-]{5,30}/$'))
+          || (data.externalProvider == 'tiktok'
+           && data.externalUrl.matches('^https://www[.]tiktok[.]com/@[A-Za-z0-9._]{2,32}/video/[0-9]{10,25}$'))
+        )
+      );
     }
     function publicPost(id) {
       return exists(/databases/$(database)/documents/pwnzPosts/$(id))
@@ -213,18 +239,39 @@ service cloud.firestore {
       allow read: if resource.data.status == 'published';
       allow create: if agreementCurrent()
         && verifiedHandle(request.auth.uid, request.resource.data.authorHandle)
-        && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','status','createdAt'])
+        && request.resource.data.keys().hasOnly(['authorUid','authorHandle','title','body','youtubeId','twitch','postSection','externalProvider','externalUrl','contentWarning','status','createdAt'])
         && request.resource.data.keys().hasAll(['authorUid','authorHandle','title','body','status','createdAt'])
         && request.resource.data.authorUid == request.auth.uid
         && textWithin(request.resource.data.title, 140)
         && textWithin(request.resource.data.body, 4000)
-        && (request.resource.data.title.size() > 0 || request.resource.data.body.size() > 0 || 'youtubeId' in request.resource.data || 'twitch' in request.resource.data)
+        && (request.resource.data.title.size() > 0 || request.resource.data.body.size() > 0 || 'youtubeId' in request.resource.data || 'twitch' in request.resource.data || 'externalUrl' in request.resource.data)
         && optionalVideoId(request.resource.data)
         && optionalTwitch(request.resource.data)
+        && optionalPostSection(request.resource.data)
+        && optionalExternalMedia(request.resource.data)
+        && optionalContentWarning(request.resource.data)
         && request.resource.data.status == 'published'
         && request.resource.data.createdAt == request.time;
       allow update: if false;
       allow delete: if agreementCurrent() && resource.data.authorUid == request.auth.uid;
+    }
+
+    // Private reports for manual moderation; no public report directory.
+    match /pwnzPostReports/{id} {
+      allow get: if signedIn() && resource.data.reporterUid == request.auth.uid;
+      allow list: if false;
+      allow create: if agreementCurrent()
+        && request.resource.data.keys().hasOnly(['reporterUid','postId','reason','status','createdAt'])
+        && request.resource.data.keys().hasAll(['reporterUid','postId','reason','status','createdAt'])
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.postId is string
+        && request.resource.data.postId.matches('^[A-Za-z0-9]{10,50}$')
+        && id == request.resource.data.postId + '__' + request.auth.uid
+        && publicPost(request.resource.data.postId)
+        && request.resource.data.reason in ['sexual','explicit','unsafe-minors','violence','harassment','privacy','copyright','spam','other']
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time;
+      allow update, delete: if false;
     }
 
     match /pwnzComments/{commentId} {

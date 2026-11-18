@@ -1,0 +1,15 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import {POST_WARNINGS,REPORT_REASONS,normalizeWarning,normalizeReportReason,shouldBlur,interpretAnnealSuggestion} from "../social/moderation-policy.mjs";
+test("sensitive post blurred by default",()=>assert.equal(shouldBlur({contentWarning:"sensitive"}),true));
+test("sexual-context post blurred by default",()=>assert.equal(shouldBlur({contentWarning:"sexual-context"}),true));
+test("ordinary post does not need blurred cover",()=>assert.equal(shouldBlur({contentWarning:"none"}),false));
+test("unknown warnings denied at composition",()=>assert.throws(()=>normalizeWarning("uncensored")));
+test("prohibited-category reports supported",()=>assert.equal(normalizeReportReason("unsafe-minors"),"unsafe-minors"));
+test("report reasons include serious safety flags",()=>assert.ok(REPORT_REASONS.includes("sexual")&&REPORT_REASONS.includes("explicit")&&REPORT_REASONS.includes("privacy")));
+test("empty ANNEAL output grants no authority",()=>assert.equal(interpretAnnealSuggestion(null).publicationAuthority,false));
+test("critical ANNEAL category requests human review",()=>assert.equal(interpretAnnealSuggestion({category:"child-sexual-abuse",confidence:.95}).suggestion,"urgent-human-review"));
+test("classifier never publishes or removes automatically",()=>assert.equal(interpretAnnealSuggestion({category:"sexual",confidence:.99}).publicationAuthority,false));
+test("even low confidence cannot authorize",()=>assert.equal(interpretAnnealSuggestion({category:"safe",confidence:.1}).humanReviewRequired,true));
+test("invalid probability cannot authorize",()=>assert.equal(interpretAnnealSuggestion({category:"sexual",confidence:NaN}).publicationAuthority,false));
+test("declared warning catalog is bounded",()=>assert.deepEqual(POST_WARNINGS,["none","sensitive","sexual-context"]));

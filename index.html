@@ -57,6 +57,18 @@
     footer{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;border-top:1px solid var(--line);padding:25px 0 39px;color:var(--muted);font-size:.85rem;}
     @media (max-width:800px){.doors{grid-template-columns:1fr}.door{min-height:145px}.hero{grid-template-columns:1fr;padding:55px 0 56px;gap:0}.emblem-wrap{max-width:370px;width:100%;margin:auto}.grid{grid-template-columns:1fr}.nav nav{display:none}h1{font-size:clamp(3.5rem,14vw,6rem)}}
     @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}.button{transition:none}}
+    /* PwnZ unified compact layout: keep social and account actions above the fold. */
+    .hero{min-height:360px;padding:38px 0 48px;gap:21px}
+    h1{font-size:clamp(3rem,8vw,5.65rem);margin:14px 0 18px}
+    .hero .lede{font-size:clamp(1rem,1.8vw,1.18rem)}
+    .cta{margin-top:18px;gap:9px}
+    .doors{gap:11px;margin-bottom:26px}
+    .door{min-height:157px;padding:19px;border-radius:16px}
+    .door strong{font-size:1.35rem}
+    .section{padding:23px 0 46px}
+    .account-strip{padding:17px;margin-bottom:20px}
+    .card{padding:18px;border-radius:14px}
+    @media(max-width:800px){.hero{min-height:0;grid-template-columns:1fr;padding:28px 0 32px}.doors{grid-template-columns:1fr}.door{min-height:114px}.hero h1{font-size:clamp(2.7rem,10.2vw,4.7rem)}.emblem-wrap{max-width:235px;margin:auto}.section{padding:20px 0 32px}}
   </style>
 <link rel="stylesheet" href="/assets/pwnz-nav.css"></head>
 <body>
