@@ -13,9 +13,13 @@ test("both social and messenger require current, non-expired shared agreement",(
  assert.match(social,/a\.expiresAt\?\.toMillis\?\.\(\)>Date\.now\(\)/);
  assert.match(messenger,/expires\.getTime\(\)>Date\.now\(\)/);
 });
-test("member directed to full canonical agreement; no second acceptance",()=>{
+test("PwnZ renders and accepts full canonical agreement without a separate PwnZ record",()=>{
  assert.match(html,/Light of Hope Ecosystem Community Rules/);
- assert.match(html,/complete, canonical agreement/);
+ assert.match(html,/id="agreement-full-text"/);
+ assert.match(social,/fetch\("https:\/\/light-of-hope\.net\/api\/ecosystem-agreement"/);
+ assert.match(social,/const batch=writeBatch\(state\.db\)/);
+ assert.match(social,/batch\.set\(doc\(state\.db,"agreements",uid\)/);
+ assert.match(social,/batch\.set\(history/);
  assert.match(html,/https:\/\/light-of-hope\.net\/\#\/profile/);
  assert.match(html,/id="agree-check" type="checkbox" disabled/);
 });
