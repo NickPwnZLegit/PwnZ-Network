@@ -2,7 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
 import {parsePwnzMediaLink,extractPwnzMediaCards} from "./external-media.mjs";
-import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, Timestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
@@ -20,7 +20,7 @@ function clearRenewal(){
 }
 
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,agreementLookupFailed:false,edenActive:false,authAction:"register",backendReady:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,agreementLookupFailed:false,agreementTerms:null,edenActive:false,authAction:"register",backendReady:false};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -43,6 +43,7 @@ async function init(){
      await refreshBadgeProgress();
    }
    state.agreementCurrent=state.edenActive&&state.verifiedEden;
+   if(user&&state.edenActive&&!state.agreementCurrent)await loadCanonicalAgreement();
    // On first known expiry/version mismatch, sign out once per browser tab.
    // A failed Firestore verification must not cause repeated automatic logout.
    if(user&&state.backendReady&&state.edenActive&&!state.agreementCurrent
@@ -79,10 +80,65 @@ async function loadAgreement(){
     (a.uid==null||a.uid===state.user.uid));
  }catch(e){state.agreementLookupFailed=true;state.agreementCurrent=false;notice("Shared ecosystem agreement cannot be verified. Member actions remain locked.");}
 }
-$("agree-submit").addEventListener("click",()=>{
- // Do not create a second PwnZ agreement. Open the existing shared account's
- // agreement gate, where accepted rules are stored once for all three sites.
- window.location.assign("https://light-of-hope.net/#/profile");
+async function loadCanonicalAgreement(){
+ const host=$("agreement-full-text");host.replaceChildren();
+ $("agree-check").checked=false;$("agree-check").disabled=true;$("agree-submit").disabled=true;
+ try{
+  const result=await fetch("https://light-of-hope.net/api/ecosystem-agreement",{cache:"no-store"});
+  if(!result.ok)throw Error("Cannot load the canonical agreement.");
+  const terms=await result.json();
+  if(terms.ok!==true||terms.version!==AGREEMENT_VERSION||
+     terms.validityDays!==30||!Array.isArray(terms.sections)||terms.sections.length<3)
+     throw Error("The shared agreement version does not match this website. Member actions remain locked.");
+  state.agreementTerms=terms;
+  const heading=document.createElement("h3");heading.textContent=terms.title;host.append(heading);
+  const intro=document.createElement("p");intro.textContent=terms.acknowledgement;host.append(intro);
+  for(const section of terms.sections){
+   const article=document.createElement("article");
+   const h=document.createElement("h3");h.textContent=section.title;article.append(h);
+   for(const paragraph of section.paragraphs||[]){
+    const p=document.createElement("p");p.textContent=paragraph;article.append(p);
+   }
+   host.append(article);
+  }
+  $("agreement-version").textContent="Current shared version: "+terms.version+" · "+terms.validityDays+" days";
+  $("agree-check").disabled=false;
+  $("agree-status").textContent="Read the complete agreement before accepting. One acknowledgement covers Light of Hope, EdenNetwork and PwnZ.";
+ }catch(e){
+  state.agreementTerms=null;
+  const p=document.createElement("p");p.textContent=e.message||"The agreement is unavailable.";host.append(p);
+  $("agree-status").textContent="Agreement verification unavailable. No account changes were made.";
+ }
+}
+$("agree-check").addEventListener("change",()=>{
+ $("agree-submit").disabled=!($("agree-check").checked&&state.agreementTerms&&state.edenActive&&state.user);
+});
+$("agree-submit").addEventListener("click",async()=>{
+ if(!state.user||!state.edenActive||!state.db||!state.agreementTerms||
+  state.agreementTerms.version!==AGREEMENT_VERSION||!$("agree-check").checked){
+  $("agree-status").textContent="Review the full agreement and confirm acceptance first.";return;
+ }
+ const button=$("agree-submit");button.disabled=true;
+ try{
+  const uid=state.user.uid,now=Date.now(),expiration=Timestamp.fromMillis(now+30*24*3600_000);
+  const history=doc(collection(state.db,"agreementHistory",uid,"acceptances"));
+  const data={uid,agreementId:state.agreementTerms.id,agreementVersion:AGREEMENT_VERSION,
+   effectiveLabel:state.agreementTerms.effectiveLabel,accepted:true,acceptedAt:serverTimestamp(),
+   acceptedAtClient:Timestamp.fromMillis(now),expiresAt:expiration,validityDays:30,
+   updatedAt:serverTimestamp()};
+  const batch=writeBatch(state.db);
+  batch.set(doc(state.db,"agreements",uid),data,{merge:true});
+  batch.set(history,{...data,historyRecordId:history.id});
+  await batch.commit();
+  await loadAgreement();
+  if(!state.agreementCurrent)throw Error("Agreement was saved but cannot yet be verified. Try again.");
+  state.verifiedEden=true;
+  clearRenewal();
+  renderSession();
+  $("agree-status").textContent="Agreement accepted for 30 days across the ecosystem.";
+  notice("Shared ecosystem agreement accepted. Your PwnZ member access is restored.");
+ }catch(e){$("agree-status").textContent="Acceptance not completed: "+(e.message||"Try again.");}
+ finally{button.disabled=false;}
 });
 function renderSession(){
  const signed=Boolean(state.user);
