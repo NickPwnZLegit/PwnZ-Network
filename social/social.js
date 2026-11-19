@@ -2,13 +2,25 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
 import {parsePwnzMediaLink,extractPwnzMediaCards} from "./external-media.mjs";
-import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, writeBatch, Timestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-const AGREEMENT_VERSION='pwnz-2026.10.30.1';
+// Canonical network agreement. PwnZ-only legacy acceptance is read-only during migration.
+const AGREEMENT_VERSION='ecosystem-2026.11.18.1';
+const RENEWAL_MARKER='pwnz-ecosystem-renewal-reauth-v1';
+function pendingRenewal(){
+ try{return window.sessionStorage.getItem(RENEWAL_MARKER)||"";}catch{return "";}
+}
+function markRenewal(uid){
+ try{window.sessionStorage.setItem(RENEWAL_MARKER,uid);return true;}catch{return false;}
+}
+function clearRenewal(){
+ try{window.sessionStorage.removeItem(RENEWAL_MARKER);}catch{}
+}
+
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,agreementLookupFailed:false,agreementTerms:null,edenActive:false,authAction:"register",backendReady:false};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -24,39 +36,125 @@ async function init(){
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();
-   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
+   state.agreementCurrent=false;state.agreementLookupFailed=false;state.edenActive=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user&&state.backendReady){
      await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus()]);
      await loadAgreement();
      await refreshBadgeProgress();
    }
-   state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
-   renderSession(); if(state.backendReady)watchPosts();
+   // Preserve agreement loader verdict, which also covers legacy PwnZ gamers.
+   if(user&&state.edenActive&&!state.agreementCurrent)await loadCanonicalAgreement();
+   // On first known expiry/version mismatch, sign out once per browser tab.
+   // A failed Firestore verification must not cause repeated automatic logout.
+   if(user&&state.backendReady&&state.edenActive&&!state.agreementCurrent
+      &&!state.agreementLookupFailed&&pendingRenewal()!==user.uid){
+     if(markRenewal(user.uid)){
+       notice("Your 30-day ecosystem agreement needs renewal. Sign in again to review it.");
+       const didSignOut=await signOut(state.auth).then(()=>true).catch(()=>false);
+       if(didSignOut)return;
+       clearRenewal();
+       notice("Could not sign out for renewal. Member actions remain locked until agreement verification succeeds.");
+     }
+   }
+   if(user&&state.agreementCurrent)clearRenewal();
+   renderSession();
+   if(user&&pendingRenewal()===user.uid&&!state.agreementCurrent){
+     $("community-agreement").hidden=false;
+     $("community-agreement").scrollIntoView({behavior:"smooth",block:"start"});
+     notice("Review the shared ecosystem agreement before continuing member activities.");
+   } if(state.backendReady)watchPosts();
    if(!state.backendReady)notice(user?"Email sign-in succeeded. PwnZ profiles and Eden verification are paused until Firebase rules are installed.":"Email sign-in is available. PwnZ registration and social features remain locked until Firebase activation.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
 async function loadAgreement(){
- if(state.edenActive){state.agreementCurrent=state.verifiedEden;return;}
- try{const record=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
-  const a=record.exists()?record.data():{};
-  state.agreementCurrent=state.edenActive ? state.verifiedEden : (a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now());
- }catch(e){state.agreementCurrent=false;notice("Agreement permission check unavailable. Community posting remains locked.");}
-}
-$("agree-submit").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.edenActive||!$("agree-check").checked){$("agree-status").textContent="Please read and check the agreement first.";return;}
- const btn=$("agree-submit");btn.disabled=true;
+ if(!state.user||!state.db){state.agreementCurrent=false;return;}
  try{
-  const now=Date.now();
-  await setDoc(doc(state.db,"pwnzAgreements",state.user.uid),{uid:state.user.uid,accepted:true,version:AGREEMENT_VERSION,acceptedAt:serverTimestamp(),expiresAt:new Date(now+30*24*60*60*1000-5*60*1000)});
-  await loadAgreement();renderSession();notice("PwnZ agreement accepted. Your community access is available.");
- }catch(e){$("agree-status").textContent="Could not save agreement: "+e.message;}
- finally{btn.disabled=false;}
+  // Same Firebase UID and same agreements/{uid} as Light of Hope and Eden.
+  const record=await getDoc(doc(state.db,"agreements",state.user.uid));
+  const a=record.exists()?record.data():{};
+  state.agreementLookupFailed=false;
+  const canonical=Boolean(state.edenActive && a.accepted===true &&
+    a.agreementVersion===AGREEMENT_VERSION &&
+    a.expiresAt?.toMillis?.()>Date.now() &&
+    (a.uid==null||a.uid===state.user.uid));
+  // Legacy PwnZ-only accounts retain unexpired local access.
+  // This never grants Eden personhood or cross-network privileges.
+  let legacy=false;
+  if(!state.edenActive && !canonical){
+   const old=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
+   const previous=old.exists()?old.data():{};
+   legacy=Boolean(state.profile && previous.uid===state.user.uid &&
+     previous.accepted===true && previous.version==="pwnz-2026.10.30.1" &&
+     previous.expiresAt?.toMillis?.()>Date.now());
+  }
+  state.agreementCurrent=canonical||legacy;
+ }catch(e){state.agreementLookupFailed=true;state.agreementCurrent=false;notice("Shared ecosystem agreement cannot be verified. Member actions remain locked.");}
+}
+async function loadCanonicalAgreement(){
+ const host=$("agreement-full-text");host.replaceChildren();
+ $("agree-check").checked=false;$("agree-check").disabled=true;$("agree-submit").disabled=true;
+ try{
+  const result=await fetch("https://light-of-hope.net/api/ecosystem-agreement",{cache:"no-store"});
+  if(!result.ok)throw Error("Cannot load the canonical agreement.");
+  const terms=await result.json();
+  if(terms.ok!==true||terms.version!==AGREEMENT_VERSION||
+     terms.validityDays!==30||!Array.isArray(terms.sections)||terms.sections.length<3)
+     throw Error("The shared agreement version does not match this website. Member actions remain locked.");
+  state.agreementTerms=terms;
+  const heading=document.createElement("h3");heading.textContent=terms.title;host.append(heading);
+  const intro=document.createElement("p");intro.textContent=terms.acknowledgement;host.append(intro);
+  for(const section of terms.sections){
+   const article=document.createElement("article");
+   const h=document.createElement("h3");h.textContent=section.title;article.append(h);
+   for(const paragraph of section.paragraphs||[]){
+    const p=document.createElement("p");p.textContent=paragraph;article.append(p);
+   }
+   host.append(article);
+  }
+  $("agreement-version").textContent="Current shared version: "+terms.version+" · "+terms.validityDays+" days";
+  $("agree-check").disabled=false;
+  $("agree-status").textContent="Read the complete agreement before accepting. One acknowledgement covers Light of Hope, EdenNetwork and PwnZ.";
+ }catch(e){
+  state.agreementTerms=null;
+  const p=document.createElement("p");p.textContent=e.message||"The agreement is unavailable.";host.append(p);
+  $("agree-status").textContent="Agreement verification unavailable. No account changes were made.";
+ }
+}
+$("agree-check").addEventListener("change",()=>{
+ $("agree-submit").disabled=!($("agree-check").checked&&state.agreementTerms&&state.edenActive&&state.user);
+});
+$("agree-submit").addEventListener("click",async()=>{
+ if(!state.user||!state.edenActive||!state.db||!state.agreementTerms||
+  state.agreementTerms.version!==AGREEMENT_VERSION||!$("agree-check").checked){
+  $("agree-status").textContent="Review the full agreement and confirm acceptance first.";return;
+ }
+ const button=$("agree-submit");button.disabled=true;
+ try{
+  const uid=state.user.uid,now=Date.now(),expiration=Timestamp.fromMillis(now+30*24*3600_000);
+  const history=doc(collection(state.db,"agreementHistory",uid,"acceptances"));
+  const data={uid,agreementId:state.agreementTerms.id,agreementVersion:AGREEMENT_VERSION,
+   effectiveLabel:state.agreementTerms.effectiveLabel,accepted:true,acceptedAt:serverTimestamp(),
+   acceptedAtClient:Timestamp.fromMillis(now),expiresAt:expiration,validityDays:30,
+   updatedAt:serverTimestamp()};
+  const batch=writeBatch(state.db);
+  batch.set(doc(state.db,"agreements",uid),data,{merge:true});
+  batch.set(history,{...data,historyRecordId:history.id});
+  await batch.commit();
+  await loadAgreement();
+  if(!state.agreementCurrent)throw Error("Agreement was saved but cannot yet be verified. Try again.");
+  state.verifiedEden=true;
+  clearRenewal();
+  renderSession();
+  $("agree-status").textContent="Agreement accepted for 30 days across the ecosystem.";
+  notice("Shared ecosystem agreement accepted. Your PwnZ member access is restored.");
+ }catch(e){$("agree-status").textContent="Acceptance not completed: "+(e.message||"Try again.");}
+ finally{button.disabled=false;}
 });
 function renderSession(){
  const signed=Boolean(state.user);
- $("community-agreement").hidden=!(signed&&state.backendReady&&state.profile&&!state.agreementCurrent&&!state.edenActive);
- $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
+ $("community-agreement").hidden=!(signed&&state.backendReady&&!state.agreementCurrent);
+ $("eden-renewal").hidden=true;
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
@@ -69,7 +167,7 @@ function renderSession(){
   $("youtube").value=state.profile.youtube||"";
   $("handle-entry").hidden=true;
   $("role-application").hidden=!state.agreementCurrent;
-  $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Accept the 30-day PwnZ agreement below to participate.";
+  $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Review and accept the shared 30-day ecosystem agreement to participate.";
  }else{
   $("handle-entry").hidden=!(signed&&state.backendReady&&state.edenActive);
   $("role-application").hidden=true;
@@ -97,9 +195,9 @@ async function checkEdenStatus(){
   const expiry=agreement?.expiresAt?.toDate?.();
   state.edenActive=active;
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
-    &&agreement.agreementVersion==="v16-2026.08.27.1"
+    &&agreement.agreementVersion===AGREEMENT_VERSION
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
- }catch(e){state.verifiedEden=false;notice("Eden verification could not be checked. PwnZ-only features remain available after profile setup.");}
+ }catch(e){state.verifiedEden=false;notice("Eden verification could not be checked. Member actions remain locked until shared verification is restored.");}
 }
 async function refreshBadgeProgress(){
  if(!state.profile||!state.db||!state.user)return;
@@ -152,8 +250,8 @@ document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("c
 }));
 $("recheck-eden").addEventListener("click",async()=>{
  if(!state.user)return;
- await checkEdenStatus();state.agreementCurrent=state.verifiedEden;await loadAgreement();
- state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;renderSession();
+ await checkEdenStatus();await loadAgreement();
+ renderSession();
 });
 chooseAuthMode("pwnz");
 async function loadFollowing(){
