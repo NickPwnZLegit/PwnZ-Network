@@ -8,6 +8,17 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 // Canonical network agreement. PwnZ-only legacy acceptance is read-only during migration.
 const AGREEMENT_VERSION='ecosystem-2026.11.18.1';
+const RENEWAL_MARKER='pwnz-ecosystem-renewal-reauth-v1';
+function pendingRenewal(){
+ try{return window.sessionStorage.getItem(RENEWAL_MARKER)||"";}catch{return "";}
+}
+function markRenewal(uid){
+ try{window.sessionStorage.setItem(RENEWAL_MARKER,uid);return true;}catch{return false;}
+}
+function clearRenewal(){
+ try{window.sessionStorage.removeItem(RENEWAL_MARKER);}catch{}
+}
+
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false};
 function notice(message){ $("notice").textContent=message; }
@@ -32,7 +43,23 @@ async function init(){
      await refreshBadgeProgress();
    }
    state.agreementCurrent=state.edenActive&&state.verifiedEden;
-   renderSession(); if(state.backendReady)watchPosts();
+   // On first known expiry/version mismatch, sign out once per browser tab.
+   // A failed Firestore verification must not cause repeated automatic logout.
+   if(user&&state.backendReady&&state.edenActive&&!state.agreementCurrent
+      &&pendingRenewal()!==user.uid){
+     if(markRenewal(user.uid)){
+       notice("Your 30-day ecosystem agreement needs renewal. Sign in again to review it.");
+       await signOut(state.auth).catch(()=>clearRenewal());
+       return;
+     }
+   }
+   if(user&&state.agreementCurrent)clearRenewal();
+   renderSession();
+   if(user&&pendingRenewal()===user.uid&&!state.agreementCurrent){
+     $("community-agreement").hidden=false;
+     $("community-agreement").scrollIntoView({behavior:"smooth",block:"start"});
+     notice("Review the shared ecosystem agreement before continuing member activities.");
+   } if(state.backendReady)watchPosts();
    if(!state.backendReady)notice(user?"Email sign-in succeeded. PwnZ profiles and Eden verification are paused until Firebase rules are installed.":"Email sign-in is available. PwnZ registration and social features remain locked until Firebase activation.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
