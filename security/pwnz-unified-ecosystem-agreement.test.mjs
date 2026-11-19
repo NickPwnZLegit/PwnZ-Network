@@ -19,3 +19,13 @@ test("member directed to full canonical agreement; no second acceptance",()=>{
  assert.match(html,/https:\/\/light-of-hope\.net\/\#\/profile/);
  assert.match(html,/id="agree-check" type="checkbox" disabled/);
 });
+
+test("agreement renewal signs out once then shows the agreement on next login",()=>{
+ assert.match(social,/const RENEWAL_MARKER=/);
+ assert.match(social,/pendingRenewal\(\)!==user\.uid/);
+ assert.match(social,/markRenewal\(user\.uid\)/);
+ assert.match(social,/await signOut\(state\.auth\)/);
+ assert.match(social,/pendingRenewal\(\)===user\.uid/);
+ assert.match(social,/\$\("community-agreement"\)\.scrollIntoView/);
+ assert.match(social,/!state\.agreementLookupFailed/);
+});
