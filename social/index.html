@@ -6,17 +6,16 @@
 <div class="notice" id="notice" role="status" aria-live="polite">Connecting to PwnZ Social…</div>
 <div class="layout"><aside>
 <section class="panel" id="eden-renewal" hidden><h2>Shared ecosystem agreement</h2><p class="muted">A current Eden RealID and a single 30-day community agreement govern member participation on Light of Hope, EdenNetwork and PwnZ. Renew once on your ecosystem account.</p><a class="btn primary" href="https://light-of-hope.net/#/profile" rel="noopener noreferrer">Review shared ecosystem agreement</a><button class="btn" id="recheck-eden" type="button">Check again</button></section>
-<section class="panel" id="community-agreement" hidden><span class="tag">One ecosystem · One acknowledgement · 30 days</span><h2>Light of Hope Ecosystem Community Rules</h2>
-<div class="agreement-scroll" tabindex="0" aria-label="Shared ecosystem agreement overview">
-<p><strong>Applies across Light of Hope, EdenNetwork and PwnZ.</strong> Your current agreement is attached to your authenticated Eden RealID account, regardless of which network you first joined. Your optional PwnZ gamer name remains separate.</p>
-<p><strong>Humanity and safety.</strong> Respect others. No harassment, hateful abuse, credible threats, bullying, exploitation, grooming, sexual exploitation, hate or dehumanization, or scams.</p>
-<p><strong>Original gaming and media.</strong> Share only games, clips, media and content you have the rights and permission to use. No piracy, cheating, match manipulation, impersonation, doxxing, or publishing others' private information. Moderation applies to posts, messages, uploads and live broadcasts.</p>
-<p><strong>Privacy and accountability.</strong> Keep passwords, private keys, recovery phrases and account data private. Report abuse. Publication of videos requires review and is never guaranteed by uploading.</p>
-<p><strong>Renewal and privileges.</strong> Your acknowledgement lasts 30 days or until a new required version is released. An expired agreement locks member-only actions but does not erase your account. It does not itself grant DAO votes, token rights, subscriptions or special creator roles.</p>
-<p><strong>Full terms.</strong> The complete, canonical agreement is maintained on Light of Hope. This summary is informational, not a substitute for the full terms that you must review and accept.</p></div>
-<a class="btn primary" href="https://light-of-hope.net/#/profile" rel="noopener noreferrer">Read full agreement on Light of Hope</a>
-<label class="agreement-check"><input id="agree-check" type="checkbox" disabled> Agreement acceptance is handled through the shared account gate, not a separate PwnZ record.</label>
-<button class="btn primary" id="agree-submit" type="button">Open shared agreement</button><p class="muted" id="agree-status" role="status"></p>
+<section class="panel" id="community-agreement" hidden>
+  <span class="tag">One ecosystem · One acknowledgement · 30 days</span>
+  <h2>Light of Hope Ecosystem Community Rules</h2>
+  <p class="muted">Please read the complete shared agreement before continuing. Your Eden RealID and PwnZ gamer name remain intact. Accepting it here is recorded on the same Firebase account used across all three networks.</p>
+  <div id="agreement-full-text" class="agreement-scroll" tabindex="0" aria-label="Complete current ecosystem agreement" aria-live="polite"><p>Retrieving the canonical ecosystem agreement…</p></div>
+  <p class="muted" id="agreement-version">Agreement version is being checked.</p>
+  <label class="agreement-check"><input id="agree-check" type="checkbox" disabled> I have read and agree to the full current Light of Hope Ecosystem Community Rules.</label>
+  <button class="btn primary" id="agree-submit" type="button" disabled>Accept once for 30 days</button>
+  <p class="muted" id="agree-status" role="status"></p>
+  <p class="muted"><a href="https://light-of-hope.net/#/profile" rel="noopener noreferrer">Read the agreement on Light of Hope instead</a></p>
 </section><section class="panel" id="auth-panel" hidden><h2>Your account</h2>
 <div class="account-choices" role="group" aria-label="Choose account type">
 <button class="account-choice" type="button" data-auth-mode="pwnz" aria-pressed="true"><strong>🎮 New ecosystem member</strong><span>Create one Eden RealID plus your separate PwnZ gamer name. Email/password is the temporary sign-in until Hope Labs ZK enrollment is available.</span></button>
