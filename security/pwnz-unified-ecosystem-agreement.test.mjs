@@ -33,3 +33,13 @@ test("agreement renewal signs out once then shows the agreement on next login",(
  assert.match(social,/\$\("community-agreement"\)\.scrollIntoView/);
  assert.match(social,/!state\.agreementLookupFailed/);
 });
+
+test("legacy PwnZ gamer sessions are preserved while Eden migration is optional",()=>{
+ assert.match(social,/getDoc\(doc\(state\.db,"pwnzAgreements",state\.user\.uid\)\)/);
+ assert.match(social,/previous\.version==="pwnz-2026\.10\.30\.1"/);
+ assert.match(social,/previous\.expiresAt\?\.toMillis\?\.\(\)>Date\.now\(\)/);
+ assert.match(social,/state\.agreementCurrent=canonical\|\|legacy/);
+ assert.doesNotMatch(social,/state\.agreementCurrent=state\.edenActive&&state\.verifiedEden/);
+ assert.doesNotMatch(social,/state\.agreementCurrent=state\.edenActive\?state\.verifiedEden:state\.agreementCurrent/);
+ assert.match(social,/if\(user&&state\.backendReady&&state\.edenActive&&!state\.agreementCurrent/);
+});
