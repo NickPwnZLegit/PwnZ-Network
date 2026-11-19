@@ -15,7 +15,7 @@ test("both social and messenger require current, non-expired shared agreement",(
 });
 test("member directed to full canonical agreement; no second acceptance",()=>{
  assert.match(html,/Light of Hope Ecosystem Community Rules/);
- assert.match(html,/full, canonical agreement/);
+ assert.match(html,/complete, canonical agreement/);
  assert.match(html,/https:\/\/light-of-hope\.net\/\#\/profile/);
  assert.match(html,/id="agree-check" type="checkbox" disabled/);
 });
