@@ -42,7 +42,7 @@ async function init(){
      await loadAgreement();
      await refreshBadgeProgress();
    }
-   state.agreementCurrent=state.edenActive&&state.verifiedEden;
+   // Preserve agreement loader verdict, which also covers legacy PwnZ gamers.
    if(user&&state.edenActive&&!state.agreementCurrent)await loadCanonicalAgreement();
    // On first known expiry/version mismatch, sign out once per browser tab.
    // A failed Firestore verification must not cause repeated automatic logout.
@@ -74,10 +74,21 @@ async function loadAgreement(){
   const record=await getDoc(doc(state.db,"agreements",state.user.uid));
   const a=record.exists()?record.data():{};
   state.agreementLookupFailed=false;
-  state.agreementCurrent=Boolean(state.edenActive && a.accepted===true &&
+  const canonical=Boolean(state.edenActive && a.accepted===true &&
     a.agreementVersion===AGREEMENT_VERSION &&
     a.expiresAt?.toMillis?.()>Date.now() &&
     (a.uid==null||a.uid===state.user.uid));
+  // Legacy PwnZ-only accounts retain unexpired local access.
+  // This never grants Eden personhood or cross-network privileges.
+  let legacy=false;
+  if(!state.edenActive && !canonical){
+   const old=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
+   const previous=old.exists()?old.data():{};
+   legacy=Boolean(state.profile && previous.uid===state.user.uid &&
+     previous.accepted===true && previous.version==="pwnz-2026.10.30.1" &&
+     previous.expiresAt?.toMillis?.()>Date.now());
+  }
+  state.agreementCurrent=canonical||legacy;
  }catch(e){state.agreementLookupFailed=true;state.agreementCurrent=false;notice("Shared ecosystem agreement cannot be verified. Member actions remain locked.");}
 }
 async function loadCanonicalAgreement(){
@@ -239,8 +250,8 @@ document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("c
 }));
 $("recheck-eden").addEventListener("click",async()=>{
  if(!state.user)return;
- await checkEdenStatus();state.agreementCurrent=state.verifiedEden;await loadAgreement();
- state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;renderSession();
+ await checkEdenStatus();await loadAgreement();
+ renderSession();
 });
 chooseAuthMode("pwnz");
 async function loadFollowing(){
