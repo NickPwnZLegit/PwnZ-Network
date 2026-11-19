@@ -20,7 +20,7 @@ function clearRenewal(){
 }
 
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,agreementLookupFailed:false,edenActive:false,authAction:"register",backendReady:false};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -36,7 +36,7 @@ async function init(){
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();
-   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
+   state.agreementCurrent=false;state.agreementLookupFailed=false;state.edenActive=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user&&state.backendReady){
      await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus()]);
      await loadAgreement();
@@ -46,11 +46,13 @@ async function init(){
    // On first known expiry/version mismatch, sign out once per browser tab.
    // A failed Firestore verification must not cause repeated automatic logout.
    if(user&&state.backendReady&&state.edenActive&&!state.agreementCurrent
-      &&pendingRenewal()!==user.uid){
+      &&!state.agreementLookupFailed&&pendingRenewal()!==user.uid){
      if(markRenewal(user.uid)){
        notice("Your 30-day ecosystem agreement needs renewal. Sign in again to review it.");
-       await signOut(state.auth).catch(()=>clearRenewal());
-       return;
+       const didSignOut=await signOut(state.auth).then(()=>true).catch(()=>false);
+       if(didSignOut)return;
+       clearRenewal();
+       notice("Could not sign out for renewal. Member actions remain locked until agreement verification succeeds.");
      }
    }
    if(user&&state.agreementCurrent)clearRenewal();
@@ -70,11 +72,12 @@ async function loadAgreement(){
   // Same Firebase UID and same agreements/{uid} as Light of Hope and Eden.
   const record=await getDoc(doc(state.db,"agreements",state.user.uid));
   const a=record.exists()?record.data():{};
+  state.agreementLookupFailed=false;
   state.agreementCurrent=Boolean(state.edenActive && a.accepted===true &&
     a.agreementVersion===AGREEMENT_VERSION &&
     a.expiresAt?.toMillis?.()>Date.now() &&
     (a.uid==null||a.uid===state.user.uid));
- }catch(e){state.agreementCurrent=false;notice("Shared ecosystem agreement cannot be verified. Member actions remain locked.");}
+ }catch(e){state.agreementLookupFailed=true;state.agreementCurrent=false;notice("Shared ecosystem agreement cannot be verified. Member actions remain locked.");}
 }
 $("agree-submit").addEventListener("click",()=>{
  // Do not create a second PwnZ agreement. Open the existing shared account's
