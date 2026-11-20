@@ -24,6 +24,8 @@ jobs:
         run: node --test security/pwnz-network-home-links.test.mjs
       - name: Existing Eden RealID sign-in and Gamertag recovery regression
         run: node --test security/pwnz-existing-eden-gamertag-recheck.test.mjs
+      - name: Existing Eden sign-in UI status regression
+        run: node --test security/pwnz-signed-in-onboarding-ui.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
