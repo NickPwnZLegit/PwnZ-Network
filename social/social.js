@@ -34,7 +34,7 @@ async function init(){
    }
    state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
    renderSession(); if(state.backendReady)watchPosts();
-   if(!state.backendReady)notice(user?"Email sign-in succeeded. PwnZ profiles and Eden verification are paused until Firebase rules are installed.":"Email sign-in is available. PwnZ registration and social features remain locked until Firebase activation.");
+   if(!state.backendReady)notice(user?"Signed in successfully. Eden account status can be checked, but PwnZ registration and posting remain disabled until the backend and Firestore rules are approved.":"Email sign-in is available. PwnZ registration and social features remain locked until backend activation.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
@@ -57,8 +57,9 @@ $("agree-submit").addEventListener("click",async()=>{
 });
 function identityMessage(){
  if(!state.user)return "Choose an ecosystem account path above.";
- if(!state.backendReady)return "Firebase sign-in works. PwnZ Gamertag registration is paused until the social backend is enabled and its Firestore rules are verified. Do not create another Eden RealID.";
- if(state.edenLookup==="unavailable")return "Signed in, but Eden RealID verification could not be completed. Review your original Light of Hope account and try again. Nothing was changed.";
+ if(state.edenLookup==="unavailable")return "Signed in, but the Eden RealID status check could not be completed. No account was changed.";
+ if(state.edenActive&&!state.backendReady)return "✓ Existing Eden RealID recognized for this account. PwnZ Gamertag creation is still paused because the social backend is disabled.";
+ if(!state.backendReady)return "Firebase sign-in works. PwnZ registration is paused, and this account's Eden RealID is not yet confirmed here. Do not register a duplicate.";
  if(!state.edenActive)return "Signed in, but this account's existing Eden RealID is not yet verified here. Review or activate the original Light of Hope profile, then recheck. Do not register again.";
  return state.verifiedEden
   ?"✓ Eden RealID verified across the ecosystem. Your PwnZ Gamertag stays separate."
@@ -68,6 +69,9 @@ function renderSession(){
  const signed=Boolean(state.user);
  $("community-agreement").hidden=!(signed&&state.backendReady&&state.profile&&!state.agreementCurrent&&!state.edenActive);
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
+ $("account-choices").hidden=signed;
+ $("pwnz-account-actions").hidden=signed||state.authMode==="eden";
+ $("auth-help").hidden=signed;
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
@@ -75,7 +79,7 @@ function renderSession(){
  $("identity-state").textContent=identityMessage();
  $("identity-recovery").hidden=!signed||(state.backendReady&&state.edenActive&&state.verifiedEden);
  $("identity-recovery-text").textContent=!state.backendReady
-  ?"Your signed-in account is preserved. PwnZ's backend is not active, so Gamertag creation remains locked. Rechecking identity does not grant access."
+  ?(state.edenActive?"Your Eden RealID is recognized. Gamertag registration still requires the PwnZ backend and matching Firestore permissions to be enabled.":"Your signed-in account is preserved. Gamertag registration is paused; the Eden account check has not confirmed an active RealID here.")
   :(state.edenLookup==="unavailable"?"Eden verification is unavailable. Retry the check, without creating a new account."
    :"If your Eden RealID already exists on Light of Hope, review its activation or agreement there, then return using the same account.");
  renderBadges();
