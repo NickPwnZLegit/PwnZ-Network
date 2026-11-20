@@ -30,8 +30,13 @@ module.exports = function handler(req, res) {
   // Existing Eden members do not need to create any new ecosystem account.
   const edenRegistrarReady = sharedProjectVerified &&
     process.env.PWNZ_ECOSYSTEM_IDENTITY_ENABLED === 'true';
+  // The other two release switches never authorize new account creation alone.
+  // Only turn on this final gate after the Light of Hope trusted paired
+  // transaction is deployed and independently enabled there.
+  const pairedRegistrationReady = edenRegistrarReady && gamertagRegistrationReady &&
+    process.env.PWNZ_PAIRED_REGISTRATION_ENABLED === 'true';
   return res.status(200).json({
-    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady, edenRegistrarReady,
+    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady, edenRegistrarReady, pairedRegistrationReady,
     config: configured ? config : null
   });
 };
