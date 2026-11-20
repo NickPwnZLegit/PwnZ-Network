@@ -21,7 +21,7 @@ async function loadAuthorizedUser(user,nonce){
    ((p.profileStatus==="active")||(p.edenRealIdStatus==="activated_v16")||
    (o.status==="grandfathered"&&o.reservationType==="legacy-profile-migration"&&Number(p.memberNumber)>0)));
  const expires=a?.expiresAt?.toDate?.();
- const currentAgreement=Boolean(a?.accepted && a.agreementVersion==="v16-2026.08.27.1" && expires instanceof Date && expires.getTime()>Date.now());
+ const currentAgreement=Boolean(a?.accepted && a.agreementVersion==="ecosystem-2026.11.18.1" && expires instanceof Date && expires.getTime()>Date.now());
  if(!active||!currentAgreement){
    status("Messenger access requires an activated Light of Hope Eden RealID and current Community Rules Agreement. Complete that first on Light of Hope.");return;
  }
