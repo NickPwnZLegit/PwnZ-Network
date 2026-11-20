@@ -11,7 +11,8 @@ const AGREEMENT_VERSION='pwnz-2026.10.30.1'; // Legacy record; no new PwnZ-only 
 const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.1']);
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const normalizeEdenName = name => String(name||"").normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,edenAgreementExpired:false,renewalSignedOut:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -43,15 +44,17 @@ async function init(){
    if(user)$("auth-panel").hidden=true;
    else chooseAuthMode("eden");
    state.user=user; state.profile=null; state.following=new Set();state.edenName="";state.displayIdentity=user?readChoice(user.uid):"eden";
-   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
+   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenAgreementExpired=false;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user){
      // Read only the signed-in user's own Eden and gamer profile even while
      // PwnZ posting/registration remains gated at the backend.
      await Promise.all([loadProfile(),checkEdenStatus(),...(state.backendReady?[loadFollowing()]:[])]);
+     if(state.edenAgreementExpired){state.renewalSignedOut=true;await signOut(state.auth);return;}
      if(state.backendReady){await loadAgreement();await refreshBadgeProgress();}
    }
    state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
    renderSession(); if(state.backendReady)watchPosts();
+   if(!user&&state.renewalSignedOut){notice("Agreement expired. Renew it on Light of Hope, then re-sign in with Eden RealID, email and password.");return;}
    if(!state.backendReady)notice(user?(state.gamertagRegistrationReady?"Signed in. Eden-linked Gamertag enrollment is available; posting and social features remain paused.":"Signed in. Gamertag registration and posting remain paused until their separate security gates are approved."):"Email sign-in is available. New member signup and PwnZ social features require their own release gates.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
@@ -88,6 +91,7 @@ function renderSession(){
  const signed=Boolean(state.user);
  $("community-agreement").hidden=true; // All new PwnZ accounts require an Eden RealID.
  $("auth-panel").hidden=signed; // Hide ALL signup/sign-in options once authenticated.
+ $("renewal-signout-help").hidden=signed||!state.renewalSignedOut;
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("account-choices").hidden=signed;
  $("auth-help").hidden=signed;
@@ -150,6 +154,7 @@ async function checkEdenStatus(){
     &&(profile.profileStatus==="active"||profile.edenRealIdStatus==="activated_v16"
       ||(owner.status==="grandfathered"&&owner.reservationType==="legacy-profile-migration"&&Number(profile.memberNumber)>0)));
   const expiry=agreement?.expiresAt?.toDate?.();
+  state.edenAgreementExpired=Boolean(active&&agreement?.accepted===true&&expiry instanceof Date&&expiry.getTime()<=Date.now());
   state.edenActive=active;
   state.edenName=active&&typeof owner.displayName==="string"&&owner.displayName.trim()
     ?owner.displayName.trim().slice(0,64)
@@ -158,7 +163,7 @@ async function checkEdenStatus(){
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
     &&EDEN_AGREEMENT_VERSIONS.has(agreement.agreementVersion)
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
- }catch(e){state.edenActive=false;state.edenName="";state.verifiedEden=false;state.edenLookup="unavailable";
+ }catch(e){state.edenActive=false;state.edenName="";state.verifiedEden=false;state.edenAgreementExpired=false;state.edenLookup="unavailable";
   notice("Eden account verification could not be completed. Your PwnZ account was not changed.");}
 }
 async function refreshBadgeProgress(){
@@ -201,6 +206,10 @@ function chooseAuthMode(mode){
  $("new-pwnz-gamertag").required=creating;
  $("eden-realid").disabled=!creating;
  $("new-pwnz-gamertag").disabled=!creating;
+ const existing=mode==="eden";
+ $("existing-eden-verify").hidden=!existing;
+ $("existing-eden-realid").required=existing;
+ $("existing-eden-realid").disabled=!existing;
  $("paired-status").textContent=creating?(state.pairedRegistrationReady?"Both names must be confirmed together. Registration is available.":"New ecosystem registration is currently paused; existing Eden members can sign in and add a Gamertag."):"";
  $("new-account-warning").hidden=Boolean(state.user)||mode!=="pwnz"||state.authAction!=="register";
  if(mode==="eden"||state.authAction!=="register")$("no-existing-eden").checked=false;
@@ -399,9 +408,11 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  const email=$("email").value.trim(),pass=$("password").value;
  const creating=state.authMode==="pwnz"&&state.authAction==="register";
  const requestedEdenRealId=creating?$("eden-realid").value.trim():"";
+ const confirmExistingEden=creating?"":$("existing-eden-realid").value.trim();
  const requestedGamerTag=creating?$("new-pwnz-gamertag").value.trim().toLowerCase():"";
  $("auth-submit").disabled=true;
  try{
+   if(!creating&&!confirmExistingEden)throw new Error("Enter your existing Eden RealID.");
    if(creating&&!state.pairedRegistrationReady)throw new Error("New ecosystem registration is paused until both names can be reserved together. Existing Eden members can sign in normally.");
    if(creating&&(requestedEdenRealId.length<3||requestedEdenRealId.length>32||!edenNamePattern.test(requestedEdenRealId)))throw new Error("Choose a valid Eden RealID (3–32 characters, letters, numbers, spaces, periods, underscores or hyphens).");
    if(creating&&!handlePattern.test(requestedGamerTag))throw new Error("Choose a PwnZ Gamertag (3-24 lowercase letters, numbers or underscores, starting with a letter).");
@@ -418,6 +429,15 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
    }else{
      state.user=credential.user;
      await checkEdenStatus();
+     if(state.edenAgreementExpired){
+       state.renewalSignedOut=true;
+       await signOut(state.auth);
+       throw new Error("Your agreement expired. Renew it on Light of Hope, then sign in again using Eden RealID, email, and password.");
+     }
+     if(state.edenActive&&normalizeEdenName(confirmExistingEden)!==normalizeEdenName(state.edenName)){
+       await signOut(state.auth);
+       throw new Error("The Eden RealID does not match this authenticated account. Confirm your registered name and sign in again.");
+     }
      if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account does not have an activated Eden RealID. Review your original Light of Hope profile; do not register again.");
      notice(state.edenActive?"Eden account verified. Create your PwnZ gamer name if this is your first visit.":"Signed in. Finish Eden RealID setup before creating a PwnZ profile.");
    }
