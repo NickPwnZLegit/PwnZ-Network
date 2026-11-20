@@ -16,6 +16,8 @@ jobs:
           node-version: '22'
       - name: Security and release checks
         run: node --test security/release-gates.test.cjs
+      - name: Hope Labs synthetic game package design regression
+        run: node --test security/hope-game-manifest.test.cjs
       - name: HOPE and PWNZ token policy
         run: node --test security/pwnz-token-scope.test.mjs
       - name: Trusted external media link contract
