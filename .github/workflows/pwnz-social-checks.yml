@@ -30,6 +30,8 @@ jobs:
         run: node --test security/pwnz-identity-display-onboarding.test.mjs
       - name: Eden-only PwnZ Gamertag registration and separation checks
         run: node --test security/pwnz-eden-only-registration-gate.test.mjs
+      - name: Cville showcase Eden owner and agreement safety checks
+        run: node --test security/pwnz-cville-showcase-identity-regression.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
