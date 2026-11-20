@@ -17,7 +17,7 @@ const test=require("node:test");const assert=require("node:assert/strict");
  });
  test("reject oversized, duplicate, unsupported and undeclared media rights",()=>{
   for(const mutate of [
-   m=>m.files[1].bytes=26000000,
+   m=>m.files[1].bytes=27*1024*1024,
    m=>m.files[1].path="index.html",
    m=>m.requestedPermissions.push("network"),
    m=>m.declaredAssets.mediaOwnedOrLicensed=false,
