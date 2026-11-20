@@ -2,6 +2,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
 import {parsePwnzMediaLink,extractPwnzMediaCards,safePwnzEmbedUrl} from "./external-media.mjs";
+import {validateClipMetadata,validateClipDuration,CLIP_DURATION_SECONDS} from "./clip-intake-policy.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
@@ -332,6 +333,34 @@ $("profile-form").addEventListener("submit",async e=>{
  try{await runTransaction(state.db,async tx=>{const own=doc(state.db,"pwnzProfiles",state.user.uid),pub=doc(state.db,"pwnzPublicProfiles",state.user.uid);await Promise.all([tx.get(own),tx.get(pub)]);tx.update(own,{bio,twitch,youtube,updatedAt:serverTimestamp()});tx.update(pub,{bio,updatedAt:serverTimestamp()});});await loadProfile();renderBadges();notice("Public PwnZ profile updated.");}
  catch(e){notice("Profile save failed: "+e.message);}
 });
+// Local-only preview, with revocable object URL. Browser video metadata is
+// informational and never grants remote upload or publication.
+let previewObjectURL=null;
+function resetClipPreview(){
+ if(previewObjectURL){URL.revokeObjectURL(previewObjectURL);previewObjectURL=null;}
+ const player=$("clip-preview-player");player.pause();player.removeAttribute("src");player.load();player.hidden=true;
+}
+$("clip-preview-input").addEventListener("change",()=>{
+ resetClipPreview();
+ const file=$("clip-preview-input").files?.[0];
+ if(!file){$("clip-preview-status").textContent="Choose a gameplay MP4 or WebM file for a private preview.";return;}
+ const check=validateClipMetadata(file);
+ if(!check.ok){$("clip-preview-input").value="";$("clip-preview-status").textContent=check.error;return;}
+ previewObjectURL=URL.createObjectURL(file);
+ $("clip-preview-player").src=previewObjectURL;
+ $("clip-preview-player").onloadedmetadata=()=>{
+  if(!validateClipDuration($("clip-preview-player").duration)){
+   resetClipPreview();$("clip-preview-input").value="";
+   $("clip-preview-status").textContent="Only gameplay clips up to "+CLIP_DURATION_SECONDS+" seconds can be previewed.";return;
+  }
+  $("clip-preview-player").hidden=false;
+  $("clip-preview-status").textContent="This video is previewing only on your device; it has not been uploaded or published.";
+ };
+ $("clip-preview-player").onerror=()=>{
+  resetClipPreview();$("clip-preview-status").textContent="Your browser could not decode this video.";
+ };
+});
+window.addEventListener("pagehide",resetClipPreview);
 $("compose").addEventListener("submit",async e=>{
  e.preventDefault();if(!state.profile||!state.user)return;
  const title=$("title").value.trim(),body=$("body").value.trim(),raw=$("video-url").value.trim();
@@ -351,7 +380,7 @@ $("compose").addEventListener("submit",async e=>{
  const submit=$("post-submit");submit.disabled=true;
  try{
   await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,title:title.slice(0,140),body:finalBody,...(youtubeId?{youtubeId}:{}),...(twitch?{twitch}:{}),status:"published",createdAt:serverTimestamp()});
-  $("compose").reset();await refreshBadgeProgress();notice("Post published to the PwnZ community.");
+  $("compose").reset();resetClipPreview();await refreshBadgeProgress();notice("Post published to the PwnZ community.");
  }catch(e){notice("Unable to publish: "+e.message);}finally{submit.disabled=false;}
 });
 $("role-application").addEventListener("submit",async e=>{
