@@ -12,12 +12,13 @@ module.exports=async function handler(req,res){
  if(Buffer.byteLength(raw)>4096)return res.status(413).json({ok:false,error:"Identity request is too large."});
  let body={};try{body=typeof req.body==="string"?JSON.parse(req.body||"{}"):(req.body||{});}catch{return res.status(400).json({ok:false,error:"Invalid request."});}
  const action=String(body.action||"").trim();
- if(!["check","reserve-activate","validate-legacy"].includes(action))return res.status(400).json({ok:false,error:"Unsupported Eden RealID action."});
+ if(action==="reserve-activate-pwnz" && process.env.PWNZ_ECOSYSTEM_IDENTITY_ENABLED!=="true")return res.status(503).json({ok:false,error:"Paired registration is unavailable."});
+ if(!["check","reserve-activate","reserve-activate-pwnz","validate-legacy"].includes(action))return res.status(400).json({ok:false,error:"Unsupported Eden RealID action."});
  try{
   const upstream=await fetch("https://light-of-hope.net/api/eden-realid",{
    method:"POST",
    headers:{"Content-Type":"application/json","Authorization":auth,"X-Hope-Ecosystem-Source":"pwnz-network"},
-   body:JSON.stringify({action,requestedName:String(body.requestedName||"")}),
+   body:JSON.stringify({action,requestedName:String(body.requestedName||""),...(action==="reserve-activate-pwnz"?{requestedGamertag:String(body.requestedGamertag||"")}: {})}),
    signal:AbortSignal.timeout(12000)
   });
   const data=await upstream.json().catch(()=>({}));
