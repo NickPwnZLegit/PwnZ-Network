@@ -13,14 +13,14 @@ test("paused backend does not claim user has no Eden RealID",()=>{
  assert.match(script,/PwnZ registration is paused/);
  assert.match(script,/Your sign-in is preserved/);
  assert.match(script,/state\.edenLookup="unavailable"/);
- assert.match(script,/state\.edenActive=false;state\.verifiedEden=false;state\.edenLookup="unavailable"/);
+ assert.match(script,/state\.edenActive=false;state\.edenName="";state\.verifiedEden=false;state\.edenLookup="unavailable"/);
 });
 test("existing-account recovery is read-only and does not create an identity",()=>{
  assert.match(page,/id="identity-recovery"/);
  assert.match(page,/id="identity-recheck"/);
  assert.match(page,/Open Light of Hope profile/);
  assert.match(script,/refreshExistingEdenAccount/);
- const recovery=script.slice(script.indexOf("async function refreshExistingEdenAccount()"),script.indexOf('chooseAuthMode("pwnz");',script.indexOf("async function refreshExistingEdenAccount()")));
+ const recovery=script.slice(script.indexOf("async function refreshExistingEdenAccount()"),script.indexOf('async function loadFollowing(){',script.indexOf("async function refreshExistingEdenAccount()")));
  assert.doesNotMatch(recovery,/createUserWithEmailAndPassword|reserve-activate|setDoc\(|runTransaction\(/);
 });
 test("gamertag write remains blocked until backend and Eden owner are verified",()=>{
