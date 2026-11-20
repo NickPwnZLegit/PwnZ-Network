@@ -183,11 +183,13 @@ function chooseAuthMode(mode){
  $("pwnz-account-actions").hidden=Boolean(state.user)||mode==="eden";
  const newEden=$("new-eden-name");
  if(newEden)newEden.hidden=mode==="eden"||state.authAction==="signin";
+ $("new-account-warning").hidden=Boolean(state.user)||mode!=="pwnz"||state.authAction!=="register";
+ if(mode==="eden"||state.authAction!=="register")$("no-existing-eden").checked=false;
  $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
  $("auth-help").textContent=mode==="eden"
-  ?"During the transition, use the email and password already tied to your verified Eden RealID. Hope Labs ZK will replace this bootstrap later without changing your PwnZ profile."
+  ?"Already have an Eden RealID from Light of Hope, EdenNetwork or PwnZ? Use your existing email and password. Do not create another account or RealID."
   :(state.authAction==="register"
-    ?"Create one Eden RealID and one PwnZ gamer name under the same ecosystem account. Email/password is temporary until ZK enrollment is available."
+    ?"Only create a new ecosystem account if you have never joined Light of Hope, EdenNetwork or PwnZ. This first account creates your Eden RealID; you can add a Gamertag after activation."
     :"Sign in to your existing transitional account. Your Eden identity remains the ecosystem anchor.");
 }
 document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("click",()=>chooseAuthMode(x.dataset.authMode)));
