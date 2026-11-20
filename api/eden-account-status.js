@@ -13,7 +13,7 @@ function trustedPreviewOrigin(env=process.env){
   const url=new URL(raw);
   if(url.protocol!=="https:"||url.username||url.password||url.port||
      url.pathname!=="/"||url.search||url.hash||
-     !/^(?:light-of-hope|light-of-hope-site)[a-z0-9-]*\\.vercel\\.app$/.test(url.hostname))
+     !/^(?:light-of-hope|light-of-hope-site)[a-z0-9-]*\.vercel\.app$/.test(url.hostname))
     return null;
   return url.origin;
  }catch{return null;}
