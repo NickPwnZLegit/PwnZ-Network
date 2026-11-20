@@ -34,7 +34,7 @@ async function init(){
   state.edenRegistrarReady=Boolean(info.edenRegistrarReady);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
-  $("auth-panel").hidden=false;
+  // Wait for Firebase to resolve the remembered session before rendering auth.
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();state.edenName="";state.displayIdentity=user?readChoice(user.uid):"eden";
    state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
@@ -81,14 +81,15 @@ function identityMessage(){
 function renderSession(){
  const signed=Boolean(state.user);
  $("community-agreement").hidden=true; // All new PwnZ accounts require an Eden RealID.
+ $("auth-panel").hidden=signed; // Hide ALL signup/sign-in options once authenticated.
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("account-choices").hidden=signed;
- $("pwnz-account-actions").hidden=signed||state.authMode==="eden";
  $("auth-help").hidden=signed;
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.backendReady&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=publicDisplayName();
  $("identity-display-settings").hidden=!(signed&&state.edenActive);
+ $("resume-paired").hidden=!(signed&&!state.edenActive&&state.gamertagRegistrationReady&&state.edenRegistrarReady&&["missing-owner","missing-profile"].includes(state.edenLookup));
  const validGamertag=typeof state.profile?.handle==="string"&&handlePattern.test(state.profile.handle);
  $("display-eden-name").textContent=state.edenName||"Eden RealID active";
  $("display-gamer-name").textContent=validGamertag?"@"+state.profile.handle:"Not created yet";
@@ -185,9 +186,13 @@ function chooseAuthMode(mode){
  state.authMode=mode;
  if(mode==="eden")state.authAction="signin";
  document.querySelectorAll("[data-auth-mode]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.authMode===mode)));
- $("pwnz-account-actions").hidden=Boolean(state.user)||mode==="eden";
+ const creating=mode==="pwnz"&&state.authAction==="register";
  const newEden=$("new-eden-name");
- if(newEden)newEden.hidden=mode==="eden"||state.authAction==="signin";
+ if(newEden)newEden.hidden=!creating;
+ $("eden-realid").required=creating;
+ $("new-pwnz-gamertag").required=creating;
+ $("eden-realid").disabled=!creating;
+ $("new-pwnz-gamertag").disabled=!creating;
  $("new-account-warning").hidden=Boolean(state.user)||mode!=="pwnz"||state.authAction!=="register";
  if(mode==="eden"||state.authAction!=="register")$("no-existing-eden").checked=false;
  $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
@@ -201,11 +206,6 @@ document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("cli
  // A new member selecting the card must see dual-name registration immediately.
  if(x.dataset.authMode==="pwnz")state.authAction="register";
  chooseAuthMode(x.dataset.authMode);
-}));
-document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("click",()=>{
- state.authAction=x.dataset.authAction;
- document.querySelectorAll("[data-auth-action]").forEach(y=>y.setAttribute("aria-pressed",String(y===x)));
- chooseAuthMode("pwnz");
 }));
 async function refreshExistingEdenAccount(){
  if(!state.user||!state.db)return;
@@ -353,6 +353,38 @@ async function loadComments(postId,box){
   }else{const p=document.createElement("p");p.textContent="Sign in and create your PwnZ profile to comment.";box.append(p);}
  }catch(e){list.textContent="Comments unavailable: "+e.message;}
 }
+async function reservePairedIdentity(edenName,gamerName){
+ if(!state.user||!state.auth)throw new Error("Sign in to your original email account to complete your paired identity.");
+ if(!state.gamertagRegistrationReady||!state.edenRegistrarReady)
+  throw new Error("Paired registration is not yet enabled. Your email account remains saved.");
+ const eden=String(edenName||"").trim(),gamer=String(gamerName||"").trim().toLowerCase();
+ if(!eden||!handlePattern.test(gamer))
+  throw new Error("Both names are required: enter an Eden RealID and a valid 3–24-character PwnZ Gamertag.");
+ const token=await state.user.getIdToken(true);
+ const response=await fetch("/api/eden-realid",{
+  method:"POST",
+  headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
+  body:JSON.stringify({action:"reserve-activate-pwnz",requestedName:eden,requestedGamertag:gamer})
+ });
+ const result=await response.json().catch(()=>({}));
+ if(!response.ok||!result.ok)
+  throw new Error((result.message||result.error||"Paired registration failed.")+" Use your original email account to resume. Do not create another account.");
+ await Promise.all([checkEdenStatus(),loadProfile()]);
+ if(!state.edenActive||!state.profile||state.profile.handle!==gamer)
+  throw new Error("The reservation response succeeded, but account confirmation is not available. Recheck the same account; do not sign up again.");
+ renderSession();
+ return result;
+}
+$("resume-paired-submit").addEventListener("click",async()=>{
+ const button=$("resume-paired-submit");button.disabled=true;
+ try{
+  if(!state.user||state.edenActive||!["missing-owner","missing-profile"].includes(state.edenLookup))
+   throw new Error("This account cannot begin another Eden identity.");
+  await reservePairedIdentity($("resume-eden-realid").value,$("resume-pwnz-gamertag").value);
+  notice("Both names activated under this same account.");
+ }catch(error){notice(error.message);}
+ finally{button.disabled=false;}
+});
 $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state.auth)return;
  const email=$("email").value.trim(),pass=$("password").value;
  const creating=state.authMode==="pwnz"&&state.authAction==="register";
@@ -368,19 +400,13 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
    if(creating)credential=await createUserWithEmailAndPassword(state.auth,email,pass);
    else credential=await signInWithEmailAndPassword(state.auth,email,pass);
    if(creating){
-     const token=await credential.user.getIdToken();
-     const response=await fetch("/api/eden-realid",{
-       method:"POST",
-       headers:{"Authorization":"Bearer "+token,"Content-Type":"application/json"},
-       body:JSON.stringify({action:"reserve-activate",requestedName:requestedEdenRealId})
-     });
-     const result=await response.json().catch(()=>({}));
-     if(!response.ok||!result.ok)throw new Error(result.message||result.error||"Eden RealID creation failed. Your account exists but onboarding is incomplete; sign in again and retry identity setup.");
-     await checkEdenStatus();
-     if(!state.edenActive)throw new Error("Firebase sign-in exists, but Eden activation is not yet confirmed. Sign in with this original account to finish Gamertag enrollment. Do not create another account.");
-     await createPwnzGamertag(requestedGamerTag);
-     notice("Your Eden RealID and PwnZ Gamertag are now registered under one account.");
+     // Firebase Auth creates the UID, but neither identity name is finalized
+     // until the single trusted Firestore transaction confirms BOTH.
+     state.user=credential.user;
+     await reservePairedIdentity(requestedEdenRealId,requestedGamerTag);
+     notice("Eden RealID and PwnZ Gamertag activated together on one account.");
    }else{
+     state.user=credential.user;
      await checkEdenStatus();
      if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account does not have an activated Eden RealID. Review your original Light of Hope profile; do not register again.");
      notice(state.edenActive?"Eden account verified. Create your PwnZ gamer name if this is your first visit.":"Signed in. Finish Eden RealID setup before creating a PwnZ profile.");
