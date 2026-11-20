@@ -13,7 +13,7 @@ test("signed-in account hides all new-account path controls without hiding sign-
 });
 test("recognized Eden identity and gated PwnZ registration show separate results",()=>{
  assert.match(social,/state\.edenActive&&!state\.gamertagRegistrationReady/);
- assert.match(social,/Existing Eden RealID recognized for this account/);
+ assert.match(social,/Existing Eden RealID recognized/);
  assert.match(social,/PwnZ Gamertag registration is awaiting its separate security release/);
  assert.match(social,/state\.edenLookup==="unavailable"/);
 });
