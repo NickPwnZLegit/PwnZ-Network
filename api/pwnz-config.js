@@ -35,8 +35,13 @@ module.exports = function handler(req, res) {
   // transaction is deployed and independently enabled there.
   const pairedRegistrationReady = edenRegistrarReady && gamertagRegistrationReady &&
     process.env.PWNZ_PAIRED_REGISTRATION_ENABLED === 'true';
+  // Reviewed creator applications are distinct from public posting.
+  // The application proxy still verifies Firebase bearer tokens and its
+  // trusted Light of Hope backend verifies Eden ownership + agreement.
+  const applicationsReady = sharedProjectVerified &&
+    process.env.PWNZ_APPLICATIONS_ENABLED === 'true';
   return res.status(200).json({
-    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady, edenRegistrarReady, pairedRegistrationReady,
+    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady, edenRegistrarReady, pairedRegistrationReady, applicationsReady,
     config: configured ? config : null
   });
 };
