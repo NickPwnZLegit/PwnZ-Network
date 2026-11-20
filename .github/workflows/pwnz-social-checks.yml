@@ -22,6 +22,8 @@ jobs:
         run: node --test security/pwnz-external-video-links-release.test.mjs
       - name: Cross-network homepage and global navigation links
         run: node --test security/pwnz-network-home-links.test.mjs
+      - name: Existing Eden RealID sign-in and Gamertag recovery regression
+        run: node --test security/pwnz-existing-eden-gamertag-recheck.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
