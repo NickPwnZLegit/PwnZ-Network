@@ -13,7 +13,7 @@ test("paused backend does not claim user has no Eden RealID",()=>{
  assert.match(script,/Gamertag enrollment is paused/);
  assert.match(script,/Your existing signed-in account is preserved/);
  assert.match(script,/state\.edenLookup="unavailable"/);
- assert.match(script,/state\.edenActive=false;state\.edenName="";state\.verifiedEden=false;state\.edenAgreementExpired=false;state\.edenLookup="unavailable"/);
+ assert.match(script,/state\.edenActive=false;state\.edenName="";state\.verifiedEden=false;state\.edenAgreementExpired=false;state\.edenAgreementExpiryMs=0;state\.edenLookup="unavailable"/);
 });
 test("existing-account recovery is read-only and does not create an identity",()=>{
  assert.match(page,/id="identity-recovery"/);
