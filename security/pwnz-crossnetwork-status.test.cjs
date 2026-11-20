@@ -1,5 +1,5 @@
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs");
-const {enabled,validatedAuthorization,summary,trustedPreviewOrigin}=require("../api/eden-account-status.js");
+const {enabled,validatedAuthorization,summary,trustedPreviewOrigin}=require("../api/eden-account-status.js")._test;
 const read=p=>fs.readFileSync(require("node:path").join(__dirname,"..",p),"utf8");
 test("preview and matching Firebase project required",()=>{
  const cfg={VERCEL_ENV:"preview",PWNZ_ACCOUNT_STATUS_TESTNET_ENABLED:"true",
