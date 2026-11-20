@@ -7,7 +7,8 @@ import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc,
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-const AGREEMENT_VERSION='pwnz-2026.10.30.1';
+const AGREEMENT_VERSION='pwnz-2026.10.30.1'; // Legacy record; no new PwnZ-only enrollment.
+const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.1']);
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
@@ -85,7 +86,7 @@ function renderSession(){
  $("pwnz-account-actions").hidden=signed||state.authMode==="eden";
  $("auth-help").hidden=signed;
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
- $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
+ $("compose").hidden=!(signed&&state.backendReady&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=publicDisplayName();
  $("identity-display-settings").hidden=!(signed&&state.edenActive);
  const validGamertag=typeof state.profile?.handle==="string"&&handlePattern.test(state.profile.handle);
@@ -108,7 +109,7 @@ function renderSession(){
   $("bio").value=state.profile.bio||"";$("twitch").value=state.profile.twitch||"";
   $("youtube").value=state.profile.youtube||"";
   $("handle-entry").hidden=true;
-  $("role-application").hidden=!state.agreementCurrent;
+  $("role-application").hidden=!(state.backendReady&&state.agreementCurrent);
   $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready, attached to your Eden account.":"Your Gamertag remains reserved. Renew your shared 30-day agreement on Light of Hope before participating."
  }else{
   $("handle-entry").hidden=!(signed&&state.gamertagRegistrationReady&&state.edenActive);
@@ -136,6 +137,7 @@ async function checkEdenStatus(){
   ]);
   const profile=p.exists()?p.data():null,owner=o.exists()?o.data():null,agreement=a.exists()?a.data():null;
   const active=Boolean(profile&&owner&&owner.uid===uid
+    &&["active","grandfathered"].includes(owner.status)
     &&(profile.profileStatus==="active"||profile.edenRealIdStatus==="activated_v16"
       ||(owner.status==="grandfathered"&&owner.reservationType==="legacy-profile-migration"&&Number(profile.memberNumber)>0)));
   const expiry=agreement?.expiresAt?.toDate?.();
@@ -145,7 +147,7 @@ async function checkEdenStatus(){
     :active&&typeof profile.edenRealID==="string"?profile.edenRealID.trim().slice(0,64):"";
   state.edenLookup=active?"active":(!o.exists()?"missing-owner":!p.exists()?"missing-profile":"inactive");
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
-    &&agreement.agreementVersion==="v16-2026.08.27.1"
+    &&EDEN_AGREEMENT_VERSIONS.has(agreement.agreementVersion)
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
  }catch(e){state.edenActive=false;state.edenName="";state.verifiedEden=false;state.edenLookup="unavailable";
   notice("Eden account verification could not be completed. Your PwnZ account was not changed.");}
@@ -192,10 +194,14 @@ function chooseAuthMode(mode){
  $("auth-help").textContent=mode==="eden"
   ?"Already have an Eden RealID from Light of Hope, EdenNetwork or PwnZ? Use your existing email and password. Do not create another account or RealID."
   :(state.authAction==="register"
-    ?"Only create a new ecosystem account if you have never joined Light of Hope, EdenNetwork or PwnZ. This first account creates your Eden RealID; you can add a Gamertag after activation."
+    ?"New PwnZ members choose their Eden RealID and PwnZ Gamertag together. Both names belong to one account, using email and password for current sign-in."
     :"Sign in to your existing transitional account. Your Eden identity remains the ecosystem anchor.");
 }
-document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("click",()=>chooseAuthMode(x.dataset.authMode)));
+document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("click",()=>{
+ // A new member selecting the card must see dual-name registration immediately.
+ if(x.dataset.authMode==="pwnz")state.authAction="register";
+ chooseAuthMode(x.dataset.authMode);
+}));
 document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("click",()=>{
  state.authAction=x.dataset.authAction;
  document.querySelectorAll("[data-auth-action]").forEach(y=>y.setAttribute("aria-pressed",String(y===x)));
