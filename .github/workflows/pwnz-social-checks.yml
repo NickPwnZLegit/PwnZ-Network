@@ -32,6 +32,8 @@ jobs:
         run: node --test security/pwnz-eden-only-registration-gate.test.mjs
       - name: Cville showcase Eden owner and agreement safety checks
         run: node --test security/pwnz-cville-showcase-identity-regression.test.mjs
+      - name: Reviewed Gamer and Game Creator application separation
+        run: node --test security/pwnz-reviewed-creator-application.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
