@@ -9,8 +9,17 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false,edenLookup:"unchecked"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
+// Client display setting only, per Firebase UID on this device. No auth impact.
+function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
+function readChoice(uid){try{return localStorage.getItem(preferenceKey(uid))==="pwnz"?"pwnz":"eden";}catch{return "eden";}}
+function saveChoice(uid,v){try{localStorage.setItem(preferenceKey(uid),v);return true;}catch{return false;}}
+function publicDisplayName(){
+ if(!state.user)return "";
+ const gamer=typeof state.profile?.handle==="string"&&handlePattern.test(state.profile.handle)?"@"+state.profile.handle:"";
+ return state.displayIdentity==="pwnz"&&gamer?gamer:(state.edenActive&&state.edenName?state.edenName:"Eden account");
+}
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
 async function init(){
@@ -24,7 +33,7 @@ async function init(){
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
-   state.user=user; state.profile=null; state.following=new Set();
+   state.user=user; state.profile=null; state.following=new Set();state.edenName="";state.displayIdentity=user?readChoice(user.uid):"eden";
    state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user){
      // Read only the signed-in user's own Eden and gamer profile even while
@@ -74,7 +83,15 @@ function renderSession(){
  $("auth-help").hidden=signed;
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
- $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
+ $("signed-name").textContent=publicDisplayName();
+ $("identity-display-settings").hidden=!(signed&&state.edenActive);
+ const validGamertag=typeof state.profile?.handle==="string"&&handlePattern.test(state.profile.handle);
+ $("display-eden-name").textContent=state.edenName||"Eden RealID active";
+ $("display-gamer-name").textContent=validGamertag?"@"+state.profile.handle:"Not created yet";
+ $("display-pwnz").disabled=!validGamertag;
+ if(!validGamertag&&state.displayIdentity==="pwnz")state.displayIdentity="eden";
+ $("display-choice").value=state.displayIdentity;
+ $("display-settings-note").textContent="Eden RealID is your identity across all networks. A PwnZ Gamertag is a separate gaming name used only on PwnZ. This display choice is saved on this device until secure account-wide settings are released.";
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
  $("identity-state").textContent=identityMessage();
  $("identity-recovery").hidden=!signed||(state.backendReady&&state.edenActive&&state.verifiedEden);
@@ -120,11 +137,14 @@ async function checkEdenStatus(){
       ||(owner.status==="grandfathered"&&owner.reservationType==="legacy-profile-migration"&&Number(profile.memberNumber)>0)));
   const expiry=agreement?.expiresAt?.toDate?.();
   state.edenActive=active;
+  state.edenName=active&&typeof owner.displayName==="string"&&owner.displayName.trim()
+    ?owner.displayName.trim().slice(0,64)
+    :active&&typeof profile.edenRealID==="string"?profile.edenRealID.trim().slice(0,64):"";
   state.edenLookup=active?"active":(!o.exists()?"missing-owner":!p.exists()?"missing-profile":"inactive");
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
     &&agreement.agreementVersion==="v16-2026.08.27.1"
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
- }catch(e){state.edenActive=false;state.verifiedEden=false;state.edenLookup="unavailable";
+ }catch(e){state.edenActive=false;state.edenName="";state.verifiedEden=false;state.edenLookup="unavailable";
   notice("Eden account verification could not be completed. Your PwnZ account was not changed.");}
 }
 async function refreshBadgeProgress(){
@@ -160,7 +180,7 @@ function chooseAuthMode(mode){
  state.authMode=mode;
  if(mode==="eden")state.authAction="signin";
  document.querySelectorAll("[data-auth-mode]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.authMode===mode)));
- $("pwnz-account-actions").hidden=mode==="eden";
+ $("pwnz-account-actions").hidden=Boolean(state.user)||mode==="eden";
  const newEden=$("new-eden-name");
  if(newEden)newEden.hidden=mode==="eden"||state.authAction==="signin";
  $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
@@ -193,7 +213,18 @@ async function refreshExistingEdenAccount(){
 }
 $("recheck-eden").addEventListener("click",refreshExistingEdenAccount);
 $("identity-recheck").addEventListener("click",refreshExistingEdenAccount);
-chooseAuthMode("pwnz");
+chooseAuthMode("eden");
+$("display-choice").addEventListener("change",()=>{
+ if(!state.user||!state.edenActive)return;
+ const choice=$("display-choice").value;
+ if(choice!=="eden" && !(choice==="pwnz"&&state.profile&&handlePattern.test(state.profile.handle))){
+  $("display-choice").value="eden";return;
+ }
+ state.displayIdentity=choice;
+ const saved=saveChoice(state.user.uid,choice);
+ renderSession();
+ notice(saved?"Display preference saved on this device.":"Display preference updated for this session; local storage was unavailable.");
+});
 async function loadFollowing(){
  if(!state.user)return;
  try{const snap=await getDocs(query(collection(state.db,"pwnzFollows"),where("followerUid","==",state.user.uid),limit(250)));state.following=new Set(snap.docs.map(d=>d.data().followedUid));}
@@ -319,6 +350,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  try{
    if(creating&&!state.backendReady)throw new Error("New ecosystem registration is paused until Firebase permissions are installed.");
    if(creating&&!requestedEdenRealId)throw new Error("Create an Eden RealID before continuing.");
+   if(creating&&!$("no-existing-eden").checked)throw new Error("Already have an Eden RealID? Choose Existing member and sign in. Only create a new account if you have never joined this ecosystem.");
    let credential;
    if(creating)credential=await createUserWithEmailAndPassword(state.auth,email,pass);
    else credential=await signInWithEmailAndPassword(state.auth,email,pass);
