@@ -22,7 +22,7 @@ test("new member card opens dual-name signup, existing path stays sign in",()=>{
 });
 test("social publishing and creator application UI remain gated while Gamertag enrollment is separate",()=>{
  assert.match(js,/\$\("compose"\)\.hidden=!\(signed&&state\.backendReady&&state\.profile&&state\.agreementCurrent\)/);
- assert.match(js,/\$\("role-application"\)\.hidden=!\(state\.backendReady&&state\.agreementCurrent\)/);
+ assert.match(js,/\$\("role-application"\)\.hidden=!\(signed&&state\.applicationsReady&&state\.edenActive&&state\.agreementCurrent\)/);
  assert.match(js,/\$\("handle-entry"\)\.hidden=!\(signed&&state\.gamertagRegistrationReady&&state\.edenActive\)/);
  assert.match(js,/!state\.user\|\|!state\.db\|\|state\.profile\|\|!state\.gamertagRegistrationReady\|\|!state\.edenActive/);
 });

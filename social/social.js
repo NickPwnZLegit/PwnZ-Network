@@ -11,7 +11,7 @@ const AGREEMENT_VERSION='pwnz-2026.10.30.1'; // Legacy record; no new PwnZ-only 
 const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.1']);
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -31,6 +31,7 @@ async function init(){
   const info=await response.json();
   if(!info.configured||!info.config){$("auth-panel").hidden=false; notice("Firebase authentication configuration is missing."); return;}
   state.backendReady=Boolean(info.ready);
+  state.applicationsReady=Boolean(info.applicationsReady);
   state.gamertagRegistrationReady=Boolean(info.gamertagRegistrationReady);
   state.edenRegistrarReady=Boolean(info.edenRegistrarReady);
   state.pairedRegistrationReady=Boolean(info.pairedRegistrationReady);
@@ -115,11 +116,13 @@ function renderSession(){
   $("bio").value=state.profile.bio||"";$("twitch").value=state.profile.twitch||"";
   $("youtube").value=state.profile.youtube||"";
   $("handle-entry").hidden=true;
-  $("role-application").hidden=!(state.backendReady&&state.agreementCurrent);
+  $("role-application").hidden=!(signed&&state.applicationsReady&&state.edenActive&&state.agreementCurrent);
+  $("role-availability").textContent=!state.applicationsReady?"Creator applications are paused while the independent approval service is verified.":!state.edenActive?"Activate your Eden RealID before applying.":!state.agreementCurrent?"Renew your 30-day Community Rules Agreement on Light of Hope to apply.":"Applications are open for verified Eden members. Your role remains PwnZ Member until reviewed.";
   $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready, attached to your Eden account.":"Your Gamertag remains reserved. Renew your shared 30-day agreement on Light of Hope before participating."
  }else{
   $("handle-entry").hidden=!(signed&&state.gamertagRegistrationReady&&state.edenActive);
   $("role-application").hidden=true;
+  $("role-availability").textContent="Create your PwnZ Gamertag under your Eden RealID to apply.";
   $("profile-note").textContent=signed?(!state.gamertagRegistrationReady
   ?"Gamertag registration is paused by the separate enrollment gate. Your Eden account is preserved."
   :state.edenLookup==="unavailable"?"Could not verify this account's Eden RealID. Recheck the connection."
@@ -512,7 +515,7 @@ $("compose").addEventListener("submit",async e=>{
  }catch(e){notice("Unable to publish: "+e.message);}finally{submit.disabled=false;}
 });
 $("role-application").addEventListener("submit",async e=>{
- e.preventDefault();if(!state.user||!state.profile||!state.agreementCurrent)return;
+ e.preventDefault();if(!state.user||!state.profile||!state.edenActive||!state.agreementCurrent||!state.applicationsReady){notice("Creator applications require an active Eden RealID, PwnZ Gamertag, current 30-day agreement and enabled application review service.");return;}
  const roleRequested=$("role-request").value;
  const category=({gamer:"pwnz-gamer",game_creator:"pwnz-game-creator",original_game:"pwnz-original-game"})[roleRequested];
  const summary=$("role-summary").value.trim(),favoriteGames=$("role-favorite").value.trim();
