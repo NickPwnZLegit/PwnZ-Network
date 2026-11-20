@@ -1,7 +1,8 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
-import {parsePwnzMediaLink,extractPwnzMediaCards} from "./external-media.mjs";
+import {parsePwnzMediaLink,extractPwnzMediaCards,safePwnzEmbedUrl} from "./external-media.mjs";
+import {validateClipMetadata,validateClipDuration,CLIP_DURATION_SECONDS} from "./clip-intake-policy.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
@@ -186,22 +187,43 @@ function renderPosts(){
   const title=document.createElement("h3");title.textContent=post.title||"Creator update";
   const body=document.createElement("p");body.textContent=post.body||"";
   card.append(top,title,body);
-  // External video content is linked, never embedded with untrusted scripts
-  // or downloaded into the PwnZ storage system.
-  for(const media of extractPwnzMediaCards(post.body)){
-   if(!["instagram","tiktok"].includes(media.provider))continue;
-   const link=document.createElement("a");
-   link.href=media.url;link.target="_blank";link.rel="noopener noreferrer";
-   link.textContent="Watch the shared "+(media.provider==="instagram"?"Instagram Reel / post":"TikTok video")+" on "+(media.provider==="instagram"?"Instagram":"TikTok");
-   link.className="external-media-card";card.append(link);
-  }
+  // A deliberate click opens an official allowlisted embed on PwnZ.
+  // No third-party iframe or video is loaded until the viewer opts in.
+  const linked=extractPwnzMediaCards(post.body,3);
   if(post.youtubeId){
-   const box=document.createElement("div");box.className="video";
-   const iframe=document.createElement("iframe");iframe.loading="lazy";iframe.allowFullscreen=true;iframe.title="Shared YouTube video";iframe.referrerPolicy="strict-origin-when-cross-origin";iframe.allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";iframe.src="https://www.youtube-nocookie.com/embed/"+encodeURIComponent(post.youtubeId);
-   box.append(iframe);card.append(box);
+   const video=parsePwnzMediaLink("https://www.youtube.com/watch?v="+post.youtubeId);
+   if(!linked.some(m=>m.url===video.url))linked.unshift(video);
   }
   if(post.twitch){
-   const link=document.createElement("a");link.href="/live/?channel="+encodeURIComponent(post.twitch);link.textContent="📡 Watch @"+post.twitch+" on Twitch";card.append(link);
+   const video=parsePwnzMediaLink("https://www.twitch.tv/"+post.twitch);
+   if(!linked.some(m=>m.url===video.url))linked.push(video);
+  }
+  for(const media of linked.slice(0,4)){
+   const frame=document.createElement("section");frame.className="pwnz-video-card";
+   const brand=document.createElement("strong");brand.textContent=media.provider.toUpperCase()+" video";
+   const controls=document.createElement("div");controls.className="pwnz-video-actions";
+   const play=document.createElement("button");play.type="button";play.className="mini";
+   play.textContent="▶ Expand & play";
+   const original=document.createElement("a");original.href=media.url;original.target="_blank";
+   original.rel="noopener noreferrer";original.className="mini";
+   original.textContent="Original link ↗";original.setAttribute("aria-label","Open original video on "+media.provider);
+   const status=document.createElement("small");status.className="muted";
+   status.textContent="Playback stays on PwnZ when the original provider allows embedding.";
+   play.addEventListener("click",()=>{
+    const prior=frame.querySelector("iframe");
+    if(prior){prior.remove();play.textContent="▶ Expand & play";play.setAttribute("aria-expanded","false");return;}
+    const url=safePwnzEmbedUrl(media,window.location.hostname);
+    if(!url){status.textContent="This link cannot be embedded safely; open the original.";return;}
+    const wrapper=document.createElement("div");wrapper.className="video";
+    const iframe=document.createElement("iframe");
+    iframe.src=url;iframe.title=media.provider+" embedded video";
+    iframe.loading="lazy";iframe.referrerPolicy="strict-origin-when-cross-origin";
+    iframe.allow="autoplay; encrypted-media; picture-in-picture; fullscreen";
+    iframe.allowFullscreen=true;wrapper.append(iframe);frame.append(wrapper);
+    play.textContent="■ Collapse & stop";play.setAttribute("aria-expanded","true");
+   });
+   play.setAttribute("aria-expanded","false");
+   controls.append(play,original);frame.append(brand,controls,status);card.append(frame);
   }
   const actions=document.createElement("div");actions.className="post-actions";
   const comment=document.createElement("button");comment.type="button";comment.className="mini";comment.textContent="Comments";
@@ -311,6 +333,34 @@ $("profile-form").addEventListener("submit",async e=>{
  try{await runTransaction(state.db,async tx=>{const own=doc(state.db,"pwnzProfiles",state.user.uid),pub=doc(state.db,"pwnzPublicProfiles",state.user.uid);await Promise.all([tx.get(own),tx.get(pub)]);tx.update(own,{bio,twitch,youtube,updatedAt:serverTimestamp()});tx.update(pub,{bio,updatedAt:serverTimestamp()});});await loadProfile();renderBadges();notice("Public PwnZ profile updated.");}
  catch(e){notice("Profile save failed: "+e.message);}
 });
+// Local-only preview, with revocable object URL. Browser video metadata is
+// informational and never grants remote upload or publication.
+let previewObjectURL=null;
+function resetClipPreview(){
+ if(previewObjectURL){URL.revokeObjectURL(previewObjectURL);previewObjectURL=null;}
+ const player=$("clip-preview-player");player.pause();player.removeAttribute("src");player.load();player.hidden=true;
+}
+$("clip-preview-input").addEventListener("change",()=>{
+ resetClipPreview();
+ const file=$("clip-preview-input").files?.[0];
+ if(!file){$("clip-preview-status").textContent="Choose a gameplay MP4 or WebM file for a private preview.";return;}
+ const check=validateClipMetadata(file);
+ if(!check.ok){$("clip-preview-input").value="";$("clip-preview-status").textContent=check.error;return;}
+ previewObjectURL=URL.createObjectURL(file);
+ $("clip-preview-player").src=previewObjectURL;
+ $("clip-preview-player").onloadedmetadata=()=>{
+  if(!validateClipDuration($("clip-preview-player").duration)){
+   resetClipPreview();$("clip-preview-input").value="";
+   $("clip-preview-status").textContent="Only gameplay clips up to "+CLIP_DURATION_SECONDS+" seconds can be previewed.";return;
+  }
+  $("clip-preview-player").hidden=false;
+  $("clip-preview-status").textContent="This video is previewing only on your device; it has not been uploaded or published.";
+ };
+ $("clip-preview-player").onerror=()=>{
+  resetClipPreview();$("clip-preview-status").textContent="Your browser could not decode this video.";
+ };
+});
+window.addEventListener("pagehide",resetClipPreview);
 $("compose").addEventListener("submit",async e=>{
  e.preventDefault();if(!state.profile||!state.user)return;
  const title=$("title").value.trim(),body=$("body").value.trim(),raw=$("video-url").value.trim();
@@ -330,7 +380,7 @@ $("compose").addEventListener("submit",async e=>{
  const submit=$("post-submit");submit.disabled=true;
  try{
   await addDoc(collection(state.db,"pwnzPosts"),{authorUid:state.user.uid,authorHandle:state.profile.handle,title:title.slice(0,140),body:finalBody,...(youtubeId?{youtubeId}:{}),...(twitch?{twitch}:{}),status:"published",createdAt:serverTimestamp()});
-  $("compose").reset();await refreshBadgeProgress();notice("Post published to the PwnZ community.");
+  $("compose").reset();resetClipPreview();await refreshBadgeProgress();notice("Post published to the PwnZ community.");
  }catch(e){notice("Unable to publish: "+e.message);}finally{submit.disabled=false;}
 });
 $("role-application").addEventListener("submit",async e=>{
