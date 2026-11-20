@@ -1,7 +1,7 @@
 (()=>{"use strict";
 if(document.getElementById("pwnz-global-nav"))return;
 const path=location.pathname;
-const entries=[["Home","⌂","/"],["Social","✦","/social/"],["Members","♧","/members/"],["Gaming","🎮","/arena/"],["Creators","◈","/community/"],["Messages","✉","/messenger/pwnz/"]];
+const entries=[["Home","⌂","/"],["Profiles","✦","/social/"],["Members","♧","/members/"],["Gaming","🎮","/arena/"],["Gaming Feed","◈","/community/"],["Messages","✉","/messenger/pwnz/"]];
 const extra=[["My Profile","/profile/"],["PwnZ Messenger","/messenger/pwnz/"],["Eden Messenger","/messenger/"],["Twitch Live","/live/"],["PwnZ Tokens · HOPE and PWNZ","/tokens/"],["Ecosystem","/ecosystem/"],["Light of Hope","https://light-of-hope.net/"],["EdenNetwork","https://edennetwork.live/"],["Hope Labs","https://hope-labs-research.vercel.app/"],["Development Archive","https://light-of-hope.net/#/development-wall"]];
 const active=href=>href==="/"?path==="/":path.startsWith(href);
 const nav=document.createElement("nav");nav.id="pwnz-global-nav";nav.setAttribute("aria-label","PwnZ main navigation");

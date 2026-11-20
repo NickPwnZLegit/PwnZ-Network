@@ -34,10 +34,13 @@ async function init(){
   state.gamertagRegistrationReady=Boolean(info.gamertagRegistrationReady);
   state.edenRegistrarReady=Boolean(info.edenRegistrarReady);
   state.pairedRegistrationReady=Boolean(info.pairedRegistrationReady);
+  chooseAuthMode(state.authMode);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   // Wait for Firebase to resolve the remembered session before rendering auth.
   onAuthStateChanged(state.auth,async user=>{
+   if(user)$("auth-panel").hidden=true;
+   else chooseAuthMode("eden");
    state.user=user; state.profile=null; state.following=new Set();state.edenName="";state.displayIdentity=user?readChoice(user.uid):"eden";
    state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user){
@@ -198,6 +201,7 @@ function chooseAuthMode(mode){
  $("paired-status").textContent=creating?(state.pairedRegistrationReady?"Both names must be confirmed together. Registration is available.":"New ecosystem registration is currently paused; existing Eden members can sign in and add a Gamertag."):"";
  $("new-account-warning").hidden=Boolean(state.user)||mode!=="pwnz"||state.authAction!=="register";
  if(mode==="eden"||state.authAction!=="register")$("no-existing-eden").checked=false;
+ $("auth-submit").disabled=creating&&!state.pairedRegistrationReady;
  $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
  $("auth-help").textContent=mode==="eden"
   ?"Already have an Eden RealID from Light of Hope, EdenNetwork or PwnZ? Use your existing email and password. Do not create another account or RealID."
@@ -417,7 +421,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
    $("password").value="";
    renderSession();
  }catch(error){notice(error.message);}
- finally{$("auth-submit").disabled=false;}
+ finally{$("auth-submit").disabled=state.authAction==="register"&&!state.pairedRegistrationReady;}
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 async function createPwnzGamertag(rawHandle){

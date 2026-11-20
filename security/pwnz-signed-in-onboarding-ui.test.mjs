@@ -7,7 +7,9 @@ const page = read("social/index.html");
 test("signed-in account hides all new-account path controls without hiding sign-out",()=>{
  assert.match(page,/id="account-choices"/);
  assert.match(social,/\$\("account-choices"\)\.hidden=signed/);
- assert.match(social,/\$\("pwnz-account-actions"\)\.hidden=signed\|\|state\.authMode==="eden"/);
+ assert.match(social,/\$\("auth-panel"\)\.hidden=signed/);
+ assert.ok(page.indexOf('id="auth-panel"')<page.indexOf('id="account-choices"'));
+ assert.ok(page.indexOf('id="profile-section"')<page.indexOf('id="logout"'));
  assert.match(social,/\$\("auth-help"\)\.hidden=signed/);
  assert.match(social,/\$\("signed-in"\)\.hidden=!signed/);
 });

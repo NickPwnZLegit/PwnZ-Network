@@ -7,7 +7,7 @@ const page=read("social/index.html");
 test("remembered sign-in checks Eden status even when backend is disabled",()=>{
  assert.match(script,/if\(user\)\{[\s\S]*?Promise\.all\(\[loadProfile\(\),checkEdenStatus\(\)/);
  assert.match(script,/if\(state\.backendReady\)\{await loadAgreement\(\);await refreshBadgeProgress\(\);\}/);
- assert.match(script,/gamertagRegistrationReady:false,edenRegistrarReady:false,edenLookup:"unchecked"/);
+ assert.match(script,/gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked"/);
 });
 test("paused backend does not claim user has no Eden RealID",()=>{
  assert.match(script,/Gamertag enrollment is paused/);
