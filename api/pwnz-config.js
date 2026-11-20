@@ -18,6 +18,12 @@ module.exports = function handler(req, res) {
   const configured = ["apiKey", "authDomain", "projectId", "appId"].every(key => Boolean(config[key]));
   // Fail closed until cross-network rules, authorized domains, and moderator controls are verified.
   const enabled = process.env.PWNZ_SOCIAL_BACKEND_ENABLED === 'true';
+  // Only enable cross-site account views when deployment config explicitly
+  // identifies the same Firebase project as the shared Eden registry.
+  // Never reveal private credentials or silently infer federation from an email.
+  const sharedProjectVerified = configured &&
+    Boolean(process.env.PWNZ_SHARED_FIREBASE_PROJECT_ID) &&
+    config.projectId === process.env.PWNZ_SHARED_FIREBASE_PROJECT_ID;
   const ready = configured && enabled;
-  return res.status(200).json({ ready, configured, enabled, config: configured ? config : null });
+  return res.status(200).json({ ready, configured, enabled, sharedProjectVerified, config: configured ? config : null });
 };
