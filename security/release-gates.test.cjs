@@ -40,7 +40,7 @@ test("PwnZ onboarding is bound to shared Eden identity",()=>{
  assert.match(social,/\/api\/eden-realid/);
  assert.match(social,/reserve-activate/);
  assert.match(social,/!state\.edenActive/);
- assert.match(page,/Create Eden RealID/);
+ assert.match(page,/Create your Eden and PwnZ identities together/);
  assert.match(page,/Hope Labs ZK/);
  assert.match(proxy,/light-of-hope\.net\/api\/eden-realid/);
  assert.match(proxy,/PWNZ_ECOSYSTEM_IDENTITY_ENABLED/);

@@ -9,7 +9,8 @@ test("new PwnZ member provides both names before Firebase account creation",()=>
  assert.match(script,/requestedGamerTag=creating\?\$\("new-pwnz-gamertag"\)/);
  assert.match(script,/if\(creating&&!handlePattern\.test\(requestedGamerTag\)\)throw/);
  assert.ok(script.indexOf("if(creating&&!handlePattern.test(requestedGamerTag))")<script.indexOf("credential=await createUserWithEmailAndPassword"));
- assert.match(script,/await createPwnzGamertag\(requestedGamerTag\)/);
+ assert.match(script,/await reservePairedIdentity\(requestedEdenRealId,requestedGamerTag\)/);
+ assert.match(html,/id="paired-status" role="status"/);
 });
 test("existing Eden members create Gamertag under same signed-in UID",()=>{
  assert.match(script,/const uid=state\.user\.uid,handle=/);
@@ -21,7 +22,7 @@ test("existing Eden members create Gamertag under same signed-in UID",()=>{
 test("gamertag gate is independent from all social permissions and defaults disabled",()=>{
  assert.match(api,/process\.env\.PWNZ_GAMERTAG_REGISTRATION_ENABLED === 'true'/);
  assert.match(api,/process\.env\.PWNZ_ECOSYSTEM_IDENTITY_ENABLED === 'true'/);
- assert.match(script,/!state\.edenRegistrarReady/);
+ assert.match(script,/if\(creating&&!state\.pairedRegistrationReady\)throw/);
  assert.match(api,/sharedProjectVerified &&/);
  assert.match(api,/process\.env\.PWNZ_SOCIAL_BACKEND_ENABLED === 'true'/);
  assert.match(script,/state\.gamertagRegistrationReady=Boolean\(info\.gamertagRegistrationReady\)/);
@@ -29,6 +30,6 @@ test("gamertag gate is independent from all social permissions and defaults disa
  assert.match(script,/if\(state\.backendReady\)watchPosts\(\)/);
 });
 test("partial onboarding never tells members to create a second Firebase account",()=>{
- assert.match(script,/Sign in with this original account to finish Gamertag enrollment/);
+ assert.match(script,/Use your original email account to resume/);
  assert.match(html,/Do NOT create a second Eden account/);
 });

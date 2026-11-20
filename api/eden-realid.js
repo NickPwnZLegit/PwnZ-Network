@@ -11,13 +11,21 @@ module.exports=async function handler(req,res){
  const raw=typeof req.body==="string"?req.body:JSON.stringify(req.body||{});
  if(Buffer.byteLength(raw)>4096)return res.status(413).json({ok:false,error:"Identity request is too large."});
  let body={};try{body=typeof req.body==="string"?JSON.parse(req.body||"{}"):(req.body||{});}catch{return res.status(400).json({ok:false,error:"Invalid request."});}
+ if(!body||typeof body!=="object"||Array.isArray(body))return res.status(400).json({ok:false,error:"Invalid request."});
  const action=String(body.action||"").trim();
- if(!["check","reserve-activate","validate-legacy"].includes(action))return res.status(400).json({ok:false,error:"Unsupported Eden RealID action."});
+ if(action==="reserve-activate-pwnz"){
+  const sharedProject=process.env.PWNZ_SHARED_FIREBASE_PROJECT_ID;
+  const pairedReady=Boolean(sharedProject)&&sharedProject===process.env.PWNZ_FIREBASE_PROJECT_ID&&
+    process.env.PWNZ_GAMERTAG_REGISTRATION_ENABLED==="true"&&
+    process.env.PWNZ_PAIRED_REGISTRATION_ENABLED==="true";
+  if(!pairedReady)return res.status(503).json({ok:false,error:"Paired registration is unavailable."});
+ }
+ if(!["check","reserve-activate-pwnz","validate-legacy"].includes(action))return res.status(400).json({ok:false,error:"Unsupported Eden RealID action."});
  try{
   const upstream=await fetch("https://light-of-hope.net/api/eden-realid",{
    method:"POST",
    headers:{"Content-Type":"application/json","Authorization":auth,"X-Hope-Ecosystem-Source":"pwnz-network"},
-   body:JSON.stringify({action,requestedName:String(body.requestedName||"")}),
+   body:JSON.stringify({action,requestedName:String(body.requestedName||""),...(action==="reserve-activate-pwnz"?{requestedGamertag:String(body.requestedGamertag||"")}: {})}),
    signal:AbortSignal.timeout(12000)
   });
   const data=await upstream.json().catch(()=>({}));
