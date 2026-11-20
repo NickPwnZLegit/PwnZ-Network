@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow">
+<title>PwnZ V16.3 · Existing Eden Account Test</title>
+<style>
+:root{color-scheme:dark;font:16px/1.55 system-ui,sans-serif;color:#e8f9ff;background:#071321}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 20% 0%,#402b6b88,transparent 55%),radial-gradient(circle at 90% 35%,#12645a66,transparent 45%),#071321}
+main{width:min(760px,calc(100% - 32px));margin:30px auto 90px}
+a{color:#8dffdf}h1{line-height:1.12;font-size:clamp(2rem,6vw,3rem)}
+article{padding:20px;margin:16px 0;border:1px solid #52708f;border-radius:18px;background:#10263bc9}
+.warning{border-color:#d9a56c;background:#382a22}
+label{display:block;margin:14px 0 4px}input{display:block;width:100%;background:#061725;color:#fff;border:1px solid #6a94ae;border-radius:10px;padding:12px;font:inherit}
+button{padding:12px 18px;margin:12px 8px 0 0;border:0;border-radius:10px;background:#9af2d3;color:#09212d;font:700 1rem system-ui;cursor:pointer}button:disabled{opacity:.6}
+button.secondary{background:#405269;color:#fff}button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid #c5afff;outline-offset:3px}
+small,.muted{color:#b4cfdb}dl{display:grid;grid-template-columns:minmax(130px,1fr) 2fr;gap:7px}dt{color:#b4cfdb}dd{margin:0;font-weight:600}#status{padding:12px;background:#1b3d49;border-radius:10px} [hidden]{display:none!important}
+</style></head><body><main>
+<p><a href="/">← Return to PwnZ</a></p>
+<h1>V16.3 · Eden RealID connection test</h1>
+<p class="muted">Temporary, read-only preview for existing members. Eden RealID is your network-wide identity; your PwnZ Gamertag is a separate optional gaming identity.</p>
+<article class="warning"><strong>Preview safety boundary</strong><p>This page uses the configured Firebase account provider but cannot create accounts or write Firestore records. Do not register a second Eden RealID. Use only your existing account, and do not share your password with anyone.</p></article>
+<p id="status" role="status" aria-live="polite">Checking preview configuration…</p>
+<article id="login" hidden>
+<h2>Existing Eden member sign-in</h2>
+<p class="muted">The same email and password used on Light of Hope. Your password is sent only to Firebase Authentication by its official browser SDK.</p>
+<form id="form" autocomplete="on">
+<label for="email">Account email</label><input id="email" type="email" autocomplete="email" required maxlength="254">
+<label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required>
+<button id="signin" type="submit">Check my Eden connection</button>
+</form>
+</article>
+<article id="result" hidden><h2>Existing identity check</h2>
+<dl><dt>Eden identity</dt><dd id="eden">Checking…</dd>
+<dt>30-day agreement</dt><dd id="agreement">Checking…</dd>
+<dt>PwnZ Gamertag</dt><dd id="gamer">Checking…</dd>
+<dt>New registrations</dt><dd>Disabled in this test</dd>
+<dt>Posts, donations and voting</dt><dd>Not available in this test</dd>
+</dl><button id="signout" type="button" class="secondary">Sign out from this test</button></article>
+<p class="muted"><small>Only your own records are requested. No UID, email, account record, token or password is displayed in the report or written to site logs. ANNEAL and biometric verification are not part of this test. A recognized Firebase account is not proof of unique humanity.</small></p>
+</main><script type="module" src="./test.js"></script></body></html>
