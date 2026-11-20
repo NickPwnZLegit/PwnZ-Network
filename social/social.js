@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,gamertagRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -30,6 +30,7 @@ async function init(){
   if(!info.configured||!info.config){$("auth-panel").hidden=false; notice("Firebase authentication configuration is missing."); return;}
   state.backendReady=Boolean(info.ready);
   state.gamertagRegistrationReady=Boolean(info.gamertagRegistrationReady);
+  state.edenRegistrarReady=Boolean(info.edenRegistrarReady);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
@@ -353,7 +354,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  const requestedGamerTag=creating?$("new-pwnz-gamertag").value.trim().toLowerCase():"";
  $("auth-submit").disabled=true;
  try{
-   if(creating&&!state.gamertagRegistrationReady)throw new Error("New Eden and PwnZ registration is paused until the Eden-only Gamertag gate is approved.");
+   if(creating&&(!state.gamertagRegistrationReady||!state.edenRegistrarReady))throw new Error("New account registration requires both an approved Eden RealID registrar and a PwnZ Gamertag security gate. Existing Eden members can sign in normally.");
    if(creating&&!requestedEdenRealId)throw new Error("Choose your Eden RealID before continuing.");
    if(creating&&!handlePattern.test(requestedGamerTag))throw new Error("Choose a PwnZ Gamertag (3-24 lowercase letters, numbers or underscores, starting with a letter).");
    if(creating&&!$("no-existing-eden").checked)throw new Error("Already have an Eden RealID? Choose Existing member and sign in. Only create a new account if you have never joined this ecosystem.");
