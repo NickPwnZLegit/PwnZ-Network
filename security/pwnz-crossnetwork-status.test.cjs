@@ -1,5 +1,5 @@
 const test=require("node:test"),assert=require("node:assert/strict"),fs=require("node:fs");
-const {enabled,validatedAuthorization,summary}=require("../api/eden-account-status.js");
+const {enabled,validatedAuthorization,summary,trustedPreviewOrigin}=require("../api/eden-account-status.js");
 const read=p=>fs.readFileSync(require("node:path").join(__dirname,"..",p),"utf8");
 test("preview and matching Firebase project required",()=>{
  const cfg={VERCEL_ENV:"preview",PWNZ_ACCOUNT_STATUS_TESTNET_ENABLED:"true",
@@ -30,4 +30,17 @@ test("only known status flags survive upstream; never leak UID/email/handles",()
  assert.equal("handle" in result,false);
  assert.equal(summary({...fields,agreementRecognized:"true"}),null);
  assert.equal(summary({...fields,mode:"production"}),null);
+});
+
+test("relay only forwards tokens to a pinned Light of Hope preview host",()=>{
+ const good={HOPE_ACCOUNT_STATUS_PREVIEW_ORIGIN:"https://light-of-hope-site-git-testing.vercel.app"};
+ assert.equal(trustedPreviewOrigin(good),"https://light-of-hope-site-git-testing.vercel.app");
+ for(const origin of [
+  "http://light-of-hope-site-git-testing.vercel.app",
+  "https://light-of-hope-site.vercel.app.evil.test",
+  "https://light-of-hope-site.vercel.app@evil.test",
+  "https://evil.vercel.app",
+  "https://light-of-hope-site.vercel.app/private",
+  "https://light-of-hope-site.vercel.app?test=1"
+ ])assert.equal(trustedPreviewOrigin({HOPE_ACCOUNT_STATUS_PREVIEW_ORIGIN:origin}),null);
 });
