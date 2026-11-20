@@ -7,7 +7,7 @@ test("existing account is default and new registration is explicitly distinct",(
  assert.match(js,/chooseAuthMode\("eden"\)/);
  assert.match(html,/I already have an Eden RealID/);
  assert.match(html,/I am completely new to Light of Hope/);
- assert.match(html,/Do NOT create a second account/);
+ assert.match(html,/Do NOT create a second Eden account/);
  assert.match(html,/id="no-existing-eden"/);
  assert.match(js,/if\(creating&&!\$\("no-existing-eden"\)\.checked\)throw/);
  assert.match(js,/\$\("new-account-warning"\)\.hidden=/);
@@ -30,6 +30,6 @@ test("gamertag display preference is optional, local and bound to signed-in UID"
  assert.match(js,/\$\("identity-display-settings"\)\.hidden=!\(signed&&state\.edenActive\)/);
 });
 test("display choice never bypasses the backend or Eden owner enrollment gates",()=>{
- assert.match(js,/!state\.user\|\|!state\.db\|\|state\.profile\|\|!state\.backendReady\|\|!state\.edenActive\)return/);
- assert.match(js,/\$\("handle-entry"\)\.hidden=!\(signed&&state\.backendReady&&state\.edenActive\)/);
+ assert.match(js,/!state\.user\|\|!state\.db\|\|state\.profile\|\|!state\.gamertagRegistrationReady\|\|!state\.edenActive/);
+ assert.match(js,/\$\("handle-entry"\)\.hidden=!\(signed&&state\.gamertagRegistrationReady&&state\.edenActive\)/);
 });
