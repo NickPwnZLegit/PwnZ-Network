@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,gamertagRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -29,6 +29,7 @@ async function init(){
   const info=await response.json();
   if(!info.configured||!info.config){$("auth-panel").hidden=false; notice("Firebase authentication configuration is missing."); return;}
   state.backendReady=Boolean(info.ready);
+  state.gamertagRegistrationReady=Boolean(info.gamertagRegistrationReady);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
@@ -67,8 +68,9 @@ $("agree-submit").addEventListener("click",async()=>{
 function identityMessage(){
  if(!state.user)return "Choose an ecosystem account path above.";
  if(state.edenLookup==="unavailable")return "Signed in, but the Eden RealID status check could not be completed. No account was changed.";
- if(state.edenActive&&!state.backendReady)return "✓ Existing Eden RealID recognized for this account. PwnZ Gamertag creation is still paused because the social backend is disabled.";
- if(!state.backendReady)return "Firebase sign-in works. PwnZ registration is paused, and this account's Eden RealID is not yet confirmed here. Do not register a duplicate.";
+ if(state.edenActive&&!state.gamertagRegistrationReady)return "✓ Existing Eden RealID recognized. PwnZ Gamertag registration is awaiting its separate security release.";
+ if(state.edenActive&&!state.profile)return "✓ Eden RealID verified. Create your PwnZ Gamertag to activate your gaming profile; your Eden account stays the same.";
+ if(!state.gamertagRegistrationReady)return "Firebase sign-in works. PwnZ Gamertag enrollment is paused; do not create another Eden RealID.";
  if(!state.edenActive)return "Signed in, but this account's existing Eden RealID is not yet verified here. Review or activate the original Light of Hope profile, then recheck. Do not register again.";
  return state.verifiedEden
   ?"✓ Eden RealID verified across the ecosystem. Your PwnZ Gamertag stays separate."
@@ -94,9 +96,9 @@ function renderSession(){
  $("display-settings-note").textContent="Eden RealID is your identity across all networks. A PwnZ Gamertag is a separate gaming name used only on PwnZ. This display choice is saved on this device until secure account-wide settings are released.";
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
  $("identity-state").textContent=identityMessage();
- $("identity-recovery").hidden=!signed||(state.backendReady&&state.edenActive&&state.verifiedEden);
- $("identity-recovery-text").textContent=!state.backendReady
-  ?(state.edenActive?"Your Eden RealID is recognized. Gamertag registration still requires the PwnZ backend and matching Firestore permissions to be enabled.":"Your signed-in account is preserved. Gamertag registration is paused; the Eden account check has not confirmed an active RealID here.")
+ $("identity-recovery").hidden=!signed||(state.gamertagRegistrationReady&&state.edenActive);
+ $("identity-recovery-text").textContent=!state.gamertagRegistrationReady
+  ?(state.edenActive?"Your Eden RealID is recognized. Gamertag registration requires the separate approved Eden-only Firestore gate.":"Your existing signed-in account is preserved. Enrollment is paused pending verified Eden ownership.")
   :(state.edenLookup==="unavailable"?"Eden verification is unavailable. Retry the check, without creating a new account."
    :"If your Eden RealID already exists on Light of Hope, review its activation or agreement there, then return using the same account.");
  renderBadges();
@@ -108,10 +110,10 @@ function renderSession(){
   $("role-application").hidden=!state.agreementCurrent;
   $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Accept the 30-day PwnZ agreement below to participate.";
  }else{
-  $("handle-entry").hidden=!(signed&&state.backendReady&&state.edenActive);
+  $("handle-entry").hidden=!(signed&&state.gamertagRegistrationReady&&state.edenActive);
   $("role-application").hidden=true;
-  $("profile-note").textContent=signed?(!state.backendReady
-  ?"Gamertag creation is paused by the PwnZ backend. Your sign-in is preserved."
+  $("profile-note").textContent=signed?(!state.gamertagRegistrationReady
+  ?"Gamertag registration is paused by the separate enrollment gate. Your Eden account is preserved."
   :state.edenLookup==="unavailable"?"Could not verify this account's Eden RealID. Recheck the connection."
   :state.edenActive?"Choose your PwnZ gamer name. It links to your Eden identity without replacing it."
   :"Review your existing Eden RealID on Light of Hope, then recheck here. Do not create a duplicate account."):"Sign in to create a PwnZ profile.";
@@ -348,10 +350,12 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  const email=$("email").value.trim(),pass=$("password").value;
  const creating=state.authMode==="pwnz"&&state.authAction==="register";
  const requestedEdenRealId=creating?$("eden-realid").value.trim():"";
+ const requestedGamerTag=creating?$("new-pwnz-gamertag").value.trim().toLowerCase():"";
  $("auth-submit").disabled=true;
  try{
-   if(creating&&!state.backendReady)throw new Error("New ecosystem registration is paused until Firebase permissions are installed.");
-   if(creating&&!requestedEdenRealId)throw new Error("Create an Eden RealID before continuing.");
+   if(creating&&!state.gamertagRegistrationReady)throw new Error("New Eden and PwnZ registration is paused until the Eden-only Gamertag gate is approved.");
+   if(creating&&!requestedEdenRealId)throw new Error("Choose your Eden RealID before continuing.");
+   if(creating&&!handlePattern.test(requestedGamerTag))throw new Error("Choose a PwnZ Gamertag (3-24 lowercase letters, numbers or underscores, starting with a letter).");
    if(creating&&!$("no-existing-eden").checked)throw new Error("Already have an Eden RealID? Choose Existing member and sign in. Only create a new account if you have never joined this ecosystem.");
    let credential;
    if(creating)credential=await createUserWithEmailAndPassword(state.auth,email,pass);
@@ -379,7 +383,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 $("reserve").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.profile||!state.backendReady||!state.edenActive)return;
+ if(!state.user||!state.db||state.profile||!state.gamertagRegistrationReady||!state.edenActive)return;
  const handle=$("handle").value.trim().toLowerCase(),key=handle;
  if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
