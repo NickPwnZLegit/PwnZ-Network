@@ -26,8 +26,12 @@ module.exports = function handler(req, res) {
     config.projectId === process.env.PWNZ_SHARED_FIREBASE_PROJECT_ID;
   const gamertagRegistrationReady = sharedProjectVerified &&
     process.env.PWNZ_GAMERTAG_REGISTRATION_ENABLED === 'true';
+  // New PwnZ members must complete shared Eden reservation before Gamertag.
+  // Existing Eden members do not need to create any new ecosystem account.
+  const edenRegistrarReady = sharedProjectVerified &&
+    process.env.PWNZ_ECOSYSTEM_IDENTITY_ENABLED === 'true';
   return res.status(200).json({
-    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady,
+    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady, edenRegistrarReady,
     config: configured ? config : null
   });
 };
