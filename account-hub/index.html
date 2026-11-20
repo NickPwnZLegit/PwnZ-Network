@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#071322"><meta name="description" content="Your PwnZ Gamertag, private Eden RealID ownership status, and shared Light of Hope ecosystem connections.">
+<title>My Connected Account | PwnZ Network</title>
+<style>
+:root{color-scheme:dark;--bg:#071322;--panel:#132b3f;--ink:#eafaff;--mute:#b9d0df;--line:#436c83;--accent:#87ffbf}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 10% 0%,#1d5671,transparent 45%),var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}a{color:var(--accent)}a:focus-visible{outline:3px solid var(--accent);outline-offset:4px}header,main,footer{width:min(1000px,calc(100% - 34px));margin:auto}header{padding:22px 0;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:15px}nav{display:flex;gap:15px;flex-wrap:wrap}main{padding:37px 0 70px}h1{font-size:clamp(2.3rem,6vw,4rem);line-height:1.1;letter-spacing:-.04em;margin:10px 0 22px}h2{margin:0 0 14px;font-size:1.35rem}p{margin:0 0 14px}.tag{color:var(--accent);letter-spacing:.14em;text-transform:uppercase;font-weight:800;font-size:.8rem}.muted{color:var(--mute)}.panel{padding:23px;border:1px solid var(--line);border-radius:18px;background:linear-gradient(135deg,#15334b,#102733);margin-bottom:18px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,315px),1fr));gap:15px}.identity{font-size:1.15rem;font-weight:800;overflow-wrap:anywhere}.state{padding:14px 17px;background:#103547;border:1px solid #557c8e;border-radius:12px;margin:20px 0}.buttons{display:flex;flex-wrap:wrap;gap:12px;margin-top:20px}.button{padding:11px 16px;background:#205069;border:1px solid #6195a6;border-radius:11px;color:white;font-weight:750;text-decoration:none;display:inline-block}.button.primary{color:#041921;background:linear-gradient(120deg,#6bb9ff,#8effbd);border:0}.note{border-left:4px solid var(--accent);padding:12px 16px;background:#092c39}.people{padding-left:20px;margin-top:9px;max-height:240px;overflow:auto}li{padding:4px 0}footer{padding:26px 0;color:var(--mute);border-top:1px solid var(--line)}[hidden]{display:none!important}@media(max-width:520px){.panel{padding:17px}.button{width:100%;text-align:center}}
+</style></head><body>
+<header><a href="/" aria-label="PwnZ homepage" style="font-weight:900;text-decoration:none">🎮 PwnZ NETWORK</a><nav aria-label="Account navigation"><a href="/social/">Social</a><a href="/profile/">Gaming Profile</a><a href="/messenger/">Messenger</a><a href="/">Home</a></nav></header>
+<main>
+<p class="tag">Hope Labs · Connected account preview</p><h1>One Eden identity.<br>Your gaming world.</h1>
+<p class="muted">Your Eden RealID links access across participating sites. Your PwnZ Gamertag is your gaming persona. Each website may require its own sign-in even when it uses the same underlying account.</p>
+<p id="hub-status" class="state" role="status" aria-live="polite">Checking shared account readiness…</p>
+<section id="not-connected" class="panel" hidden><h2>Connect using your existing account</h2><p id="next-action">Sign in to PwnZ with the same email/password you used to create your Eden RealID. Do not make another account.</p><div class="buttons"><a class="button primary" href="/social/#auth-panel">Open PwnZ sign-in</a><a class="button" href="/onboarding/">Read the account guide</a></div></section>
+<div id="connected" hidden>
+<div class="grid"><section class="panel"><h2>✧ Shared Eden RealID</h2><p id="realid" class="identity">Checking…</p><p id="agreement" class="muted">Checking community agreement…</p><p class="muted">This is your account's registered public name, not biometric or zero-knowledge personhood verification.</p></section>
+<section class="panel"><h2>🎮 PwnZ Gamertag</h2><p id="gamertag" class="identity">Checking…</p><p class="muted">Your gaming name belongs to your PwnZ profile. It does not replace or duplicate your Eden RealID.</p><a href="/social/#profile-section">Open PwnZ profile</a></section></div>
+<section class="panel"><h2>One account, connected services</h2><p class="muted">Open the existing services below. Access is enforced separately on each site; this screen cannot grant wallet, messaging, friendship or governance permissions.</p><div class="buttons">
+<a class="button primary" href="/messenger/">💬 Shared Messenger</a>
+<a class="button" href="https://light-of-hope.net/#/wallet" rel="noopener noreferrer">🔐 LightVault</a>
+<a class="button" href="https://light-of-hope.net/#/profile" rel="noopener noreferrer">💚 Light of Hope Profile</a>
+<a class="button" href="https://edennetwork.live/account/" rel="noopener noreferrer">✧ EdenNetwork Account</a>
+</div><p class="muted" style="margin-top:17px">LightVault wallet linking, transfers, balances and NFTs remain separate release-gated work. This page does not connect a wallet or request a signature.</p></section>
+<section class="panel"><h2>🌐 Shared Light Members</h2><p class="muted">These are the existing Light of Hope member connections, read using your own authenticated account. PwnZ follows remain separate. Connections aren't silently turned into mutual friendships.</p>
+<p id="members-status" role="status">Checking permitted Light Member lists…</p>
+<div id="members-lists" class="grid" hidden><div><h3>Members I added</h3><ul id="added-by-me" class="people"></ul></div><div><h3>Members who added me</h3><ul id="added-me" class="people"></ul></div></div>
+<a href="https://light-of-hope.net/#/profile" rel="noopener noreferrer">Manage Light Members on Light of Hope</a></section>
+</div>
+<p class="note"><strong>Privacy first:</strong> your email, private account ID, recovery credentials, wallet keys and future ZK uniqueness record are never published by this page. ANNEAL research never determines identity or service access.</p>
+</main><footer>PwnZ Network · Hope Labs · Shared account access is enabled only after backend and rules verification.</footer>
+<script type="module" src="/account-hub/account-hub.js"></script></body></html>
