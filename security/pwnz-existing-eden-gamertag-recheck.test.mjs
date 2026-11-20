@@ -10,7 +10,7 @@ test("remembered sign-in checks Eden status even when backend is disabled",()=>{
  assert.match(script,/backendReady:false,edenLookup:"unchecked"/);
 });
 test("paused backend does not claim user has no Eden RealID",()=>{
- assert.match(script,/Firebase sign-in works\. PwnZ Gamertag registration is paused/);
+ assert.match(script,/PwnZ registration is paused/);
  assert.match(script,/Your sign-in is preserved/);
  assert.match(script,/state\.edenLookup="unavailable"/);
  assert.match(script,/state\.edenActive=false;state\.verifiedEden=false;state\.edenLookup="unavailable"/);
