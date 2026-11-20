@@ -17,8 +17,8 @@ test("shared agreement migration coexists with current media intake and previews
   assert.match(social, /validateClipDuration/);
   assert.match(social, /resetClipPreview/);
   assert.match(html, /id="agreement-full-text"/);
-  assert.match(html, /id="clip-file"/);
-  assert.match(html, /id="clip-preview"/);
+  assert.match(html, /id="clip-preview-input"/);
+  assert.match(html, /id="clip-preview-player"/);
 });
 
 test("legacy local PwnZ acceptance cannot become cross-network authorization", () => {
