@@ -19,5 +19,15 @@ module.exports = function handler(req, res) {
   // Fail closed until cross-network rules, authorized domains, and moderator controls are verified.
   const enabled = process.env.PWNZ_SOCIAL_BACKEND_ENABLED === 'true';
   const ready = configured && enabled;
-  return res.status(200).json({ ready, configured, enabled, config: configured ? config : null });
+  // Gamertag activation is an independent feature, not a social/posting release.
+  // Keep this off until the Eden-only registration rules pass emulator tests.
+  const sharedProjectVerified = configured &&
+    Boolean(process.env.PWNZ_SHARED_FIREBASE_PROJECT_ID) &&
+    config.projectId === process.env.PWNZ_SHARED_FIREBASE_PROJECT_ID;
+  const gamertagRegistrationReady = sharedProjectVerified &&
+    process.env.PWNZ_GAMERTAG_REGISTRATION_ENABLED === 'true';
+  return res.status(200).json({
+    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady,
+    config: configured ? config : null
+  });
 };
