@@ -28,6 +28,8 @@ jobs:
         run: node --test security/pwnz-signed-in-onboarding-ui.test.mjs
       - name: Eden identity display and clear first-time onboarding gates
         run: node --test security/pwnz-identity-display-onboarding.test.mjs
+      - name: Eden-only PwnZ Gamertag registration and separation checks
+        run: node --test security/pwnz-eden-only-registration-gate.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
