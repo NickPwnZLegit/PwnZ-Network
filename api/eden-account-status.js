@@ -6,6 +6,18 @@ function enabled(env=process.env){
     Boolean(env.PWNZ_FIREBASE_PROJECT_ID) &&
     env.PWNZ_FIREBASE_PROJECT_ID===env.PWNZ_SHARED_FIREBASE_PROJECT_ID;
 }
+function trustedPreviewOrigin(env=process.env){
+ const raw=env.HOPE_ACCOUNT_STATUS_PREVIEW_ORIGIN;
+ if(typeof raw!=="string"||!raw)return null;
+ try{
+  const url=new URL(raw);
+  if(url.protocol!=="https:"||url.username||url.password||url.port||
+     url.pathname!=="/"||url.search||url.hash||
+     !/^(?:light-of-hope|light-of-hope-site)[a-z0-9-]*\\.vercel\\.app$/.test(url.hostname))
+    return null;
+  return url.origin;
+ }catch{return null;}
+}
 function validatedAuthorization(value){
   return typeof value==="string" && /^Bearer [A-Za-z0-9._-]{20,4096}$/.test(value);
 }
@@ -31,7 +43,9 @@ module.exports=async function handler(req,res){
  if(!validatedAuthorization(auth))
    return reply(res,401,{ok:false,error:"Sign in with your existing account."});
  try{
-  const result=await fetch("https://light-of-hope.net/api/eden-account-status",{
+  const origin=trustedPreviewOrigin();
+  if(!origin)return reply(res,503,{ok:false,error:"Approved Light of Hope preview origin not configured."});
+  const result=await fetch(origin+"/api/eden-account-status",{
    method:"GET",headers:{Authorization:auth,Accept:"application/json"},
    redirect:"error",signal:AbortSignal.timeout(10000)
   });
@@ -41,4 +55,4 @@ module.exports=async function handler(req,res){
   return data?reply(res,200,data):reply(res,502,{ok:false,error:"Invalid shared account status response."});
  }catch{return reply(res,503,{ok:false,error:"Shared account status unavailable."});}
 };
-module.exports._test={enabled,validatedAuthorization,summary};
+module.exports._test={enabled,validatedAuthorization,summary,trustedPreviewOrigin};
