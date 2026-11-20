@@ -24,6 +24,8 @@ jobs:
         run: node --test security/pwnz-network-home-links.test.mjs
       - name: Shared ecosystem agreement migration contract
         run: node --test security/pwnz-unified-ecosystem-agreement.test.mjs
+      - name: Shared agreement and current video social integration regression
+        run: node --test security/pwnz-agreement-media-integration.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
