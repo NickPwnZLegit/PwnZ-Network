@@ -35,8 +35,12 @@ module.exports = function handler(req, res) {
   // transaction is deployed and independently enabled there.
   const pairedRegistrationReady = edenRegistrarReady && gamertagRegistrationReady &&
     process.env.PWNZ_PAIRED_REGISTRATION_ENABLED === 'true';
+  // Reviewed creator applications are independently gated from public posting.
+  // Submission still requires a PwnZ profile, activated Eden owner and current agreement.
+  const creatorApplicationsReady = sharedProjectVerified &&
+    process.env.PWNZ_APPLICATIONS_ENABLED === 'true';
   return res.status(200).json({
-    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady, edenRegistrarReady, pairedRegistrationReady,
+    ready, configured, enabled, sharedProjectVerified, gamertagRegistrationReady, edenRegistrarReady, pairedRegistrationReady, creatorApplicationsReady,
     config: configured ? config : null
   });
 };
