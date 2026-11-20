@@ -44,7 +44,7 @@ async function init(){
    }
    state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
    renderSession(); if(state.backendReady)watchPosts();
-   if(!state.backendReady)notice(user?"Signed in successfully. Eden account status can be checked, but PwnZ registration and posting remain disabled until the backend and Firestore rules are approved.":"Email sign-in is available. PwnZ registration and social features remain locked until backend activation.");
+   if(!state.backendReady)notice(user?(state.gamertagRegistrationReady?"Signed in. Eden-linked Gamertag enrollment is available; posting and social features remain paused.":"Signed in. Gamertag registration and posting remain paused until their separate security gates are approved."):"Email sign-in is available. New member signup and PwnZ social features require their own release gates.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
@@ -78,7 +78,7 @@ function identityMessage(){
 }
 function renderSession(){
  const signed=Boolean(state.user);
- $("community-agreement").hidden=!(signed&&state.backendReady&&state.profile&&!state.agreementCurrent&&!state.edenActive);
+ $("community-agreement").hidden=true; // All new PwnZ accounts require an Eden RealID.
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("account-choices").hidden=signed;
  $("pwnz-account-actions").hidden=signed||state.authMode==="eden";
@@ -108,7 +108,7 @@ function renderSession(){
   $("youtube").value=state.profile.youtube||"";
   $("handle-entry").hidden=true;
   $("role-application").hidden=!state.agreementCurrent;
-  $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Accept the 30-day PwnZ agreement below to participate.";
+  $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready, attached to your Eden account.":"Your Gamertag remains reserved. Renew your shared 30-day agreement on Light of Hope before participating."
  }else{
   $("handle-entry").hidden=!(signed&&state.gamertagRegistrationReady&&state.edenActive);
   $("role-application").hidden=true;
@@ -208,8 +208,8 @@ async function refreshExistingEdenAccount(){
   if(state.backendReady)await loadAgreement();
   state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
   renderSession();
-  notice(!state.backendReady
-   ?"PwnZ backend activation is still pending. Your account has not been changed."
+  notice(!state.gamertagRegistrationReady
+   ?"Gamertag registration is still paused; your existing Eden account is unchanged."
    :state.edenLookup==="unavailable"?"Eden verification is temporarily unavailable."
    :state.edenActive?"Eden RealID recognized. Your Gamertag is available when the agreement is current."
    :"Eden RealID not verified here. Review the original Light of Hope profile, then recheck.");
