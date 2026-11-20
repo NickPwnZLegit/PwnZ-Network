@@ -370,10 +370,12 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
      const result=await response.json().catch(()=>({}));
      if(!response.ok||!result.ok)throw new Error(result.message||result.error||"Eden RealID creation failed. Your account exists but onboarding is incomplete; sign in again and retry identity setup.");
      await checkEdenStatus();
-     notice("Eden RealID created. Now choose your unique PwnZ gamer name.");
+     if(!state.edenActive)throw new Error("Firebase sign-in exists, but Eden activation is not yet confirmed. Sign in with this original account to finish Gamertag enrollment. Do not create another account.");
+     await createPwnzGamertag(requestedGamerTag);
+     notice("Your Eden RealID and PwnZ Gamertag are now registered under one account.");
    }else{
      await checkEdenStatus();
-     if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account does not have an activated Eden RealID.");
+     if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account does not have an activated Eden RealID. Review your original Light of Hope profile; do not register again.");
      notice(state.edenActive?"Eden account verified. Create your PwnZ gamer name if this is your first visit.":"Signed in. Finish Eden RealID setup before creating a PwnZ profile.");
    }
    $("password").value="";
@@ -382,22 +384,33 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  finally{$("auth-submit").disabled=false;}
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
+async function createPwnzGamertag(rawHandle){
+ if(!state.user||!state.db||state.profile||!state.gamertagRegistrationReady||!state.edenActive)
+  throw new Error("An activated Eden RealID and approved Gamertag registration gate are required.");
+ const uid=state.user.uid,handle=String(rawHandle||"").trim().toLowerCase(),key=handle;
+ if(!handlePattern.test(handle))throw new Error("Use 3-24 lowercase letters, numbers or underscores, starting with a letter.");
+ await runTransaction(state.db,async tx=>{
+  const ref=doc(state.db,"pwnzHandles",key),profile=doc(state.db,"pwnzProfiles",uid);
+  const publicProfile=doc(state.db,"pwnzPublicProfiles",uid);
+  const [taken,already,published]=await Promise.all([tx.get(ref),tx.get(profile),tx.get(publicProfile)]);
+  // Atomic PwnZ profile writes. Firebase Auth and Eden reservation are
+  // independent steps; a failure must resume with the original same UID.
+  if(taken.exists()||already.exists()||published.exists())
+   throw new Error("Gamertag unavailable or PwnZ profile already exists. Use your original Eden account.");
+  tx.set(ref,{uid,handle,createdAt:serverTimestamp()});
+  tx.set(profile,{uid,handle,handleKey:key,role:"member",bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+  tx.set(publicProfile,{uid,handle,bio:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
+ });
+ await loadProfile();
+ if(state.backendReady)await refreshBadgeProgress();
+ renderSession();
+ notice("PwnZ Gamertag linked to your existing Eden RealID.");
+}
 $("reserve").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.profile||!state.gamertagRegistrationReady||!state.edenActive)return;
- const handle=$("handle").value.trim().toLowerCase(),key=handle;
- if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
- try{
-  await runTransaction(state.db,async tx=>{
-   const ref=doc(state.db,"pwnzHandles",key),profile=doc(state.db,"pwnzProfiles",state.user.uid);
-   const [taken,already]=await Promise.all([tx.get(ref),tx.get(profile)]);
-   if(taken.exists()||already.exists())throw new Error("That name is unavailable or you already have a profile.");
-   tx.set(ref,{uid:state.user.uid,handle,createdAt:serverTimestamp()});
-   tx.set(profile,{uid:state.user.uid,handle,handleKey:key,role:"member",bio:"",twitch:"",youtube:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-   tx.set(doc(state.db,"pwnzPublicProfiles",state.user.uid),{uid:state.user.uid,handle,bio:"",createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
-  });
-  await loadProfile();await refreshBadgeProgress();renderSession();notice("PwnZ gamer name linked to your Eden ecosystem identity.");
- }catch(e){notice("Name registration failed: "+e.message);}finally{$("reserve").disabled=false;}
+ try{await createPwnzGamertag($("handle").value);}
+ catch(error){notice("Gamertag registration unavailable: "+error.message);}
+ finally{$("reserve").disabled=false;}
 });
 $("profile-form").addEventListener("submit",async e=>{
  e.preventDefault();if(!state.profile)return;
