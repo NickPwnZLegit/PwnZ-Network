@@ -20,6 +20,8 @@ test("existing Eden members create Gamertag under same signed-in UID",()=>{
 });
 test("gamertag gate is independent from all social permissions and defaults disabled",()=>{
  assert.match(api,/process\.env\.PWNZ_GAMERTAG_REGISTRATION_ENABLED === 'true'/);
+ assert.match(api,/process\.env\.PWNZ_ECOSYSTEM_IDENTITY_ENABLED === 'true'/);
+ assert.match(script,/!state\.edenRegistrarReady/);
  assert.match(api,/sharedProjectVerified &&/);
  assert.match(api,/process\.env\.PWNZ_SOCIAL_BACKEND_ENABLED === 'true'/);
  assert.match(script,/state\.gamertagRegistrationReady=Boolean\(info\.gamertagRegistrationReady\)/);
