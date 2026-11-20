@@ -10,7 +10,8 @@ const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&am
 const AGREEMENT_VERSION='pwnz-2026.10.30.1'; // Legacy record; no new PwnZ-only enrollment.
 const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.1']);
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -32,6 +33,7 @@ async function init(){
   state.backendReady=Boolean(info.ready);
   state.gamertagRegistrationReady=Boolean(info.gamertagRegistrationReady);
   state.edenRegistrarReady=Boolean(info.edenRegistrarReady);
+  state.pairedRegistrationReady=Boolean(info.pairedRegistrationReady);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
   // Wait for Firebase to resolve the remembered session before rendering auth.
@@ -89,7 +91,7 @@ function renderSession(){
  $("compose").hidden=!(signed&&state.backendReady&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
  $("signed-name").textContent=publicDisplayName();
  $("identity-display-settings").hidden=!(signed&&state.edenActive);
- $("resume-paired").hidden=!(signed&&!state.edenActive&&state.gamertagRegistrationReady&&state.edenRegistrarReady&&["missing-owner","missing-profile"].includes(state.edenLookup));
+ $("resume-paired").hidden=!(signed&&!state.edenActive&&state.pairedRegistrationReady&&["missing-owner","missing-profile"].includes(state.edenLookup));
  const validGamertag=typeof state.profile?.handle==="string"&&handlePattern.test(state.profile.handle);
  $("display-eden-name").textContent=state.edenName||"Eden RealID active";
  $("display-gamer-name").textContent=validGamertag?"@"+state.profile.handle:"Not created yet";
@@ -193,6 +195,7 @@ function chooseAuthMode(mode){
  $("new-pwnz-gamertag").required=creating;
  $("eden-realid").disabled=!creating;
  $("new-pwnz-gamertag").disabled=!creating;
+ $("paired-status").textContent=creating?(state.pairedRegistrationReady?"Both names must be confirmed together. Registration is available.":"New ecosystem registration is currently paused; existing Eden members can sign in and add a Gamertag."):"";
  $("new-account-warning").hidden=Boolean(state.user)||mode!=="pwnz"||state.authAction!=="register";
  if(mode==="eden"||state.authAction!=="register")$("no-existing-eden").checked=false;
  $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
@@ -355,11 +358,11 @@ async function loadComments(postId,box){
 }
 async function reservePairedIdentity(edenName,gamerName){
  if(!state.user||!state.auth)throw new Error("Sign in to your original email account to complete your paired identity.");
- if(!state.gamertagRegistrationReady||!state.edenRegistrarReady)
+ if(!state.pairedRegistrationReady)
   throw new Error("Paired registration is not yet enabled. Your email account remains saved.");
  const eden=String(edenName||"").trim(),gamer=String(gamerName||"").trim().toLowerCase();
- if(!eden||!handlePattern.test(gamer))
-  throw new Error("Both names are required: enter an Eden RealID and a valid 3–24-character PwnZ Gamertag.");
+ if(eden.length<3||eden.length>32||!edenNamePattern.test(eden)||!handlePattern.test(gamer))
+  throw new Error("Both names are required: Eden RealID must be 3–32 allowed characters and PwnZ Gamertag must be 3–24 lowercase letters, numbers or underscores.");
  const token=await state.user.getIdToken(true);
  const response=await fetch("/api/eden-realid",{
   method:"POST",
@@ -392,8 +395,8 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  const requestedGamerTag=creating?$("new-pwnz-gamertag").value.trim().toLowerCase():"";
  $("auth-submit").disabled=true;
  try{
-   if(creating&&(!state.gamertagRegistrationReady||!state.edenRegistrarReady))throw new Error("New account registration requires both an approved Eden RealID registrar and a PwnZ Gamertag security gate. Existing Eden members can sign in normally.");
-   if(creating&&!requestedEdenRealId)throw new Error("Choose your Eden RealID before continuing.");
+   if(creating&&!state.pairedRegistrationReady)throw new Error("New ecosystem registration is paused until both names can be reserved together. Existing Eden members can sign in normally.");
+   if(creating&&(requestedEdenRealId.length<3||requestedEdenRealId.length>32||!edenNamePattern.test(requestedEdenRealId)))throw new Error("Choose a valid Eden RealID (3–32 characters, letters, numbers, spaces, periods, underscores or hyphens).");
    if(creating&&!handlePattern.test(requestedGamerTag))throw new Error("Choose a PwnZ Gamertag (3-24 lowercase letters, numbers or underscores, starting with a letter).");
    if(creating&&!$("no-existing-eden").checked)throw new Error("Already have an Eden RealID? Choose Existing member and sign in. Only create a new account if you have never joined this ecosystem.");
    let credential;
