@@ -1,0 +1,25 @@
+name: V16.3 Read-only Eden Preview Checks
+on:
+  push:
+    branches:
+      - test/v16-3-existing-eden-readonly-2026-11-20
+  pull_request:
+    paths:
+      - onboarding-test/**
+      - security/pwnz-v16-3-readonly-test.mjs
+permissions:
+  contents: read
+jobs:
+  readonly-onboarding:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - name: Static safety and syntax checks
+        run: |
+          node --check onboarding-test/test.js
+          node --test security/pwnz-v16-3-readonly-test.mjs
