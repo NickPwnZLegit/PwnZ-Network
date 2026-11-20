@@ -8,7 +8,7 @@ test("new PwnZ member provides both names before Firebase account creation",()=>
  assert.match(html,/id="new-pwnz-gamertag"/);
  assert.match(script,/requestedGamerTag=creating\?\$\("new-pwnz-gamertag"\)/);
  assert.match(script,/if\(creating&&!handlePattern\.test\(requestedGamerTag\)\)throw/);
- assert.ok(script.indexOf("if(creating&&!handlePattern.test(requestedGamerTag))")<script.indexOf("createUserWithEmailAndPassword"));
+ assert.ok(script.indexOf("if(creating&&!handlePattern.test(requestedGamerTag))")<script.indexOf("credential=await createUserWithEmailAndPassword"));
  assert.match(script,/await createPwnzGamertag\(requestedGamerTag\)/);
 });
 test("existing Eden members create Gamertag under same signed-in UID",()=>{
