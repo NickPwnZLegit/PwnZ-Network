@@ -9,8 +9,17 @@ const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
 const AGREEMENT_VERSION='pwnz-2026.10.30.1';
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false,edenLookup:"unchecked"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"signin",backendReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
+// Client display setting only, per Firebase UID on this device. No auth impact.
+function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
+function readChoice(uid){try{return localStorage.getItem(preferenceKey(uid))==="pwnz"?"pwnz":"eden";}catch{return "eden";}}
+function saveChoice(uid,v){try{localStorage.setItem(preferenceKey(uid),v);return true;}catch{return false;}}
+function publicDisplayName(){
+ if(!state.user)return "";
+ const gamer=typeof state.profile?.handle==="string"&&handlePattern.test(state.profile.handle)?"@"+state.profile.handle:"";
+ return state.displayIdentity==="pwnz"&&gamer?gamer:(state.edenActive&&state.edenName?state.edenName:"Eden account");
+}
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
 async function init(){
@@ -24,7 +33,7 @@ async function init(){
   state.auth=getAuth(app);state.db=getFirestore(app);
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
-   state.user=user; state.profile=null; state.following=new Set();
+   state.user=user; state.profile=null; state.following=new Set();state.edenName="";state.displayIdentity=user?readChoice(user.uid):"eden";
    state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user){
      // Read only the signed-in user's own Eden and gamer profile even while
@@ -34,7 +43,7 @@ async function init(){
    }
    state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
    renderSession(); if(state.backendReady)watchPosts();
-   if(!state.backendReady)notice(user?"Email sign-in succeeded. PwnZ profiles and Eden verification are paused until Firebase rules are installed.":"Email sign-in is available. PwnZ registration and social features remain locked until Firebase activation.");
+   if(!state.backendReady)notice(user?"Signed in successfully. Eden account status can be checked, but PwnZ registration and posting remain disabled until the backend and Firestore rules are approved.":"Email sign-in is available. PwnZ registration and social features remain locked until backend activation.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
@@ -57,8 +66,9 @@ $("agree-submit").addEventListener("click",async()=>{
 });
 function identityMessage(){
  if(!state.user)return "Choose an ecosystem account path above.";
- if(!state.backendReady)return "Firebase sign-in works. PwnZ Gamertag registration is paused until the social backend is enabled and its Firestore rules are verified. Do not create another Eden RealID.";
- if(state.edenLookup==="unavailable")return "Signed in, but Eden RealID verification could not be completed. Review your original Light of Hope account and try again. Nothing was changed.";
+ if(state.edenLookup==="unavailable")return "Signed in, but the Eden RealID status check could not be completed. No account was changed.";
+ if(state.edenActive&&!state.backendReady)return "✓ Existing Eden RealID recognized for this account. PwnZ Gamertag creation is still paused because the social backend is disabled.";
+ if(!state.backendReady)return "Firebase sign-in works. PwnZ registration is paused, and this account's Eden RealID is not yet confirmed here. Do not register a duplicate.";
  if(!state.edenActive)return "Signed in, but this account's existing Eden RealID is not yet verified here. Review or activate the original Light of Hope profile, then recheck. Do not register again.";
  return state.verifiedEden
   ?"✓ Eden RealID verified across the ecosystem. Your PwnZ Gamertag stays separate."
@@ -68,14 +78,25 @@ function renderSession(){
  const signed=Boolean(state.user);
  $("community-agreement").hidden=!(signed&&state.backendReady&&state.profile&&!state.agreementCurrent&&!state.edenActive);
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
+ $("account-choices").hidden=signed;
+ $("pwnz-account-actions").hidden=signed||state.authMode==="eden";
+ $("auth-help").hidden=signed;
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
- $("signed-name").textContent=state.profile?"@"+state.profile.handle:(state.edenActive?"Eden member":state.user?.email||"");
+ $("signed-name").textContent=publicDisplayName();
+ $("identity-display-settings").hidden=!(signed&&state.edenActive);
+ const validGamertag=typeof state.profile?.handle==="string"&&handlePattern.test(state.profile.handle);
+ $("display-eden-name").textContent=state.edenName||"Eden RealID active";
+ $("display-gamer-name").textContent=validGamertag?"@"+state.profile.handle:"Not created yet";
+ $("display-pwnz").disabled=!validGamertag;
+ if(!validGamertag&&state.displayIdentity==="pwnz")state.displayIdentity="eden";
+ $("display-choice").value=state.displayIdentity;
+ $("display-settings-note").textContent="Eden RealID is your identity across all networks. A PwnZ Gamertag is a separate gaming name used only on PwnZ. This display choice is saved on this device until secure account-wide settings are released.";
  $("profile-role").textContent=state.profile?"Current role: PwnZ Member. Applications are reviewed, not automatically approved.":"";
  $("identity-state").textContent=identityMessage();
  $("identity-recovery").hidden=!signed||(state.backendReady&&state.edenActive&&state.verifiedEden);
  $("identity-recovery-text").textContent=!state.backendReady
-  ?"Your signed-in account is preserved. PwnZ's backend is not active, so Gamertag creation remains locked. Rechecking identity does not grant access."
+  ?(state.edenActive?"Your Eden RealID is recognized. Gamertag registration still requires the PwnZ backend and matching Firestore permissions to be enabled.":"Your signed-in account is preserved. Gamertag registration is paused; the Eden account check has not confirmed an active RealID here.")
   :(state.edenLookup==="unavailable"?"Eden verification is unavailable. Retry the check, without creating a new account."
    :"If your Eden RealID already exists on Light of Hope, review its activation or agreement there, then return using the same account.");
  renderBadges();
@@ -116,11 +137,14 @@ async function checkEdenStatus(){
       ||(owner.status==="grandfathered"&&owner.reservationType==="legacy-profile-migration"&&Number(profile.memberNumber)>0)));
   const expiry=agreement?.expiresAt?.toDate?.();
   state.edenActive=active;
+  state.edenName=active&&typeof owner.displayName==="string"&&owner.displayName.trim()
+    ?owner.displayName.trim().slice(0,64)
+    :active&&typeof profile.edenRealID==="string"?profile.edenRealID.trim().slice(0,64):"";
   state.edenLookup=active?"active":(!o.exists()?"missing-owner":!p.exists()?"missing-profile":"inactive");
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
     &&agreement.agreementVersion==="v16-2026.08.27.1"
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
- }catch(e){state.edenActive=false;state.verifiedEden=false;state.edenLookup="unavailable";
+ }catch(e){state.edenActive=false;state.edenName="";state.verifiedEden=false;state.edenLookup="unavailable";
   notice("Eden account verification could not be completed. Your PwnZ account was not changed.");}
 }
 async function refreshBadgeProgress(){
@@ -156,14 +180,16 @@ function chooseAuthMode(mode){
  state.authMode=mode;
  if(mode==="eden")state.authAction="signin";
  document.querySelectorAll("[data-auth-mode]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.authMode===mode)));
- $("pwnz-account-actions").hidden=mode==="eden";
+ $("pwnz-account-actions").hidden=Boolean(state.user)||mode==="eden";
  const newEden=$("new-eden-name");
  if(newEden)newEden.hidden=mode==="eden"||state.authAction==="signin";
+ $("new-account-warning").hidden=Boolean(state.user)||mode!=="pwnz"||state.authAction!=="register";
+ if(mode==="eden"||state.authAction!=="register")$("no-existing-eden").checked=false;
  $("auth-submit").textContent=mode==="eden"?"Sign in with existing Eden account":state.authAction==="register"?"Create ecosystem account":"Sign in";
  $("auth-help").textContent=mode==="eden"
-  ?"During the transition, use the email and password already tied to your verified Eden RealID. Hope Labs ZK will replace this bootstrap later without changing your PwnZ profile."
+  ?"Already have an Eden RealID from Light of Hope, EdenNetwork or PwnZ? Use your existing email and password. Do not create another account or RealID."
   :(state.authAction==="register"
-    ?"Create one Eden RealID and one PwnZ gamer name under the same ecosystem account. Email/password is temporary until ZK enrollment is available."
+    ?"Only create a new ecosystem account if you have never joined Light of Hope, EdenNetwork or PwnZ. This first account creates your Eden RealID; you can add a Gamertag after activation."
     :"Sign in to your existing transitional account. Your Eden identity remains the ecosystem anchor.");
 }
 document.querySelectorAll("[data-auth-mode]").forEach(x=>x.addEventListener("click",()=>chooseAuthMode(x.dataset.authMode)));
@@ -189,7 +215,18 @@ async function refreshExistingEdenAccount(){
 }
 $("recheck-eden").addEventListener("click",refreshExistingEdenAccount);
 $("identity-recheck").addEventListener("click",refreshExistingEdenAccount);
-chooseAuthMode("pwnz");
+chooseAuthMode("eden");
+$("display-choice").addEventListener("change",()=>{
+ if(!state.user||!state.edenActive)return;
+ const choice=$("display-choice").value;
+ if(choice!=="eden" && !(choice==="pwnz"&&state.profile&&handlePattern.test(state.profile.handle))){
+  $("display-choice").value="eden";return;
+ }
+ state.displayIdentity=choice;
+ const saved=saveChoice(state.user.uid,choice);
+ renderSession();
+ notice(saved?"Display preference saved on this device.":"Display preference updated for this session; local storage was unavailable.");
+});
 async function loadFollowing(){
  if(!state.user)return;
  try{const snap=await getDocs(query(collection(state.db,"pwnzFollows"),where("followerUid","==",state.user.uid),limit(250)));state.following=new Set(snap.docs.map(d=>d.data().followedUid));}
@@ -315,6 +352,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  try{
    if(creating&&!state.backendReady)throw new Error("New ecosystem registration is paused until Firebase permissions are installed.");
    if(creating&&!requestedEdenRealId)throw new Error("Create an Eden RealID before continuing.");
+   if(creating&&!$("no-existing-eden").checked)throw new Error("Already have an Eden RealID? Choose Existing member and sign in. Only create a new account if you have never joined this ecosystem.");
    let credential;
    if(creating)credential=await createUserWithEmailAndPassword(state.auth,email,pass);
    else credential=await signInWithEmailAndPassword(state.auth,email,pass);
