@@ -3,13 +3,14 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWith
 import { evaluatePwnzBadges } from "./badges.js";
 import {parsePwnzMediaLink,extractPwnzMediaCards,safePwnzEmbedUrl} from "./external-media.mjs";
 import {validateClipMetadata,validateClipDuration,CLIP_DURATION_SECONDS} from "./clip-intake-policy.mjs";
+import {SHARED_EDEN_AGREEMENT} from "./shared-eden-agreement.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-const AGREEMENT_VERSION='pwnz-2026.10.30.1';
+const AGREEMENT_VERSION=SHARED_EDEN_AGREEMENT.version;
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,authAction:"register",backendReady:false,pendingGamertag:"",edenDisplayName:"",identityDisplay:"pwnz"};
 function notice(message){ $("notice").textContent=message; }
 function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().replace(/^www\./,"");let id="";if(h==="youtu.be")id=u.pathname.split("/")[1]||"";else if(["youtube.com","m.youtube.com"].includes(h)){if(u.pathname==="/watch")id=u.searchParams.get("v")||"";else if(/^\/(shorts|embed|live)\//.test(u.pathname))id=u.pathname.split("/")[2]||"";}return /^[A-Za-z0-9_-]{11}$/.test(id)?id:null;}catch{return null;}}
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
@@ -25,38 +26,58 @@ async function init(){
   $("auth-panel").hidden=false;
   onAuthStateChanged(state.auth,async user=>{
    state.user=user; state.profile=null; state.following=new Set();
-   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
+   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenDisplayName="";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user&&state.backendReady){
      await Promise.all([loadProfile(),loadFollowing(),checkEdenStatus()]);
      await loadAgreement();
      await refreshBadgeProgress();
    }
-   state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
    renderSession(); if(state.backendReady)watchPosts();
    if(!state.backendReady)notice(user?"Email sign-in succeeded. PwnZ profiles and Eden verification are paused until Firebase rules are installed.":"Email sign-in is available. PwnZ registration and social features remain locked until Firebase activation.");
   });
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
 async function loadAgreement(){
- if(state.edenActive){state.agreementCurrent=state.verifiedEden;return;}
- try{const record=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
-  const a=record.exists()?record.data():{};
-  state.agreementCurrent=state.edenActive ? state.verifiedEden : (a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now());
- }catch(e){state.agreementCurrent=false;notice("Agreement permission check unavailable. Community posting remains locked.");}
-}
-$("agree-submit").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.edenActive||!$("agree-check").checked){$("agree-status").textContent="Please read and check the agreement first.";return;}
- const btn=$("agree-submit");btn.disabled=true;
+ if(!state.user||!state.db){state.agreementCurrent=false;return;}
  try{
-  const now=Date.now();
-  await setDoc(doc(state.db,"pwnzAgreements",state.user.uid),{uid:state.user.uid,accepted:true,version:AGREEMENT_VERSION,acceptedAt:serverTimestamp(),expiresAt:new Date(now+30*24*60*60*1000-5*60*1000)});
-  await loadAgreement();renderSession();notice("PwnZ agreement accepted. Your community access is available.");
- }catch(e){$("agree-status").textContent="Could not save agreement: "+e.message;}
- finally{btn.disabled=false;}
+  const snap=await getDoc(doc(state.db,"agreements",state.user.uid));
+  const record=snap.exists()?snap.data():{},expiry=record.expiresAt?.toMillis?.();
+  state.agreementCurrent=Boolean(state.edenActive&&record.uid===state.user.uid&&record.accepted===true
+    &&record.agreementVersion===AGREEMENT_VERSION&&Number.isFinite(expiry)&&expiry>Date.now());
+  state.verifiedEden=state.agreementCurrent;
+ }catch(e){state.agreementCurrent=false;state.verifiedEden=false;notice("Shared Eden agreement could not be verified. Community posting remains locked.");}
+}
+function renderCanonicalAgreement(){
+ const root=$("shared-agreement-text");if(!root)return;
+ root.replaceChildren();
+ for(const section of SHARED_EDEN_AGREEMENT.sections){
+  const heading=document.createElement("h3");heading.textContent=section.title;root.append(heading);
+  for(const paragraph of section.paragraphs){const item=document.createElement("p");item.textContent=paragraph;root.append(item);}
+ }
+}
+renderCanonicalAgreement();
+$("agree-submit").addEventListener("click",async()=>{
+ if(!state.user||!state.db||!state.edenActive||!$("agree-check").checked){
+  $("agree-status").textContent="Activate your Eden RealID and accept the ecosystem rules first.";return;
+ }
+ const button=$("agree-submit");button.disabled=true;
+ try{
+  const now=Date.now(), expiry=new Date(now+SHARED_EDEN_AGREEMENT.validityDays*86400000-300000);
+  await setDoc(doc(state.db,"agreements",state.user.uid),{
+   uid:state.user.uid,agreementId:SHARED_EDEN_AGREEMENT.id,
+   agreementVersion:AGREEMENT_VERSION,effectiveLabel:"V16 Early Access",
+   accepted:true,acceptedAt:serverTimestamp(),acceptedAtClient:new Date(now),
+   expiresAt:expiry,validityDays:SHARED_EDEN_AGREEMENT.validityDays,updatedAt:serverTimestamp()
+  },{merge:true});
+  await checkEdenStatus();await loadAgreement();
+  if(!state.agreementCurrent)throw Error("Shared agreement saved but could not be verified.");
+  renderSession();notice("Ecosystem agreement accepted for 30 days. Your PwnZ profile is ready for setup.");
+ }catch(e){$("agree-status").textContent="Shared agreement error: "+(e.message||"Please retry.");}
+ finally{button.disabled=false;}
 });
 function renderSession(){
  const signed=Boolean(state.user);
- $("community-agreement").hidden=!(signed&&state.backendReady&&state.profile&&!state.agreementCurrent&&!state.edenActive);
+ $("community-agreement").hidden=!(signed&&state.backendReady&&state.edenActive&&!state.agreementCurrent);
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
  $("compose").hidden=!(signed&&state.profile&&state.agreementCurrent);$("profile-display").hidden=!state.profile;
@@ -72,7 +93,7 @@ function renderSession(){
   $("role-application").hidden=!state.agreementCurrent;
   $("profile-note").textContent=state.agreementCurrent?"Your PwnZ profile is ready. Your Eden RealID stays private.":"Your PwnZ name is reserved. Accept the 30-day PwnZ agreement below to participate.";
  }else{
-  $("handle-entry").hidden=!(signed&&state.backendReady&&state.edenActive);
+  $("handle-entry").hidden=!(signed&&state.backendReady&&state.edenActive&&state.agreementCurrent);
   $("role-application").hidden=true;
   $("profile-note").textContent=signed?(state.edenActive?"Choose your PwnZ gamer name. It links to your Eden identity without replacing it.":"Create or verify your Eden RealID first."):"Sign in to create a PwnZ profile.";
  }
@@ -97,10 +118,11 @@ async function checkEdenStatus(){
       ||(owner.status==="grandfathered"&&owner.reservationType==="legacy-profile-migration"&&Number(profile.memberNumber)>0)));
   const expiry=agreement?.expiresAt?.toDate?.();
   state.edenActive=active;
-  state.verifiedEden=Boolean(active&&agreement?.accepted===true
+  state.edenDisplayName=String(owner?.displayName||profile?.edenRealID||"").slice(0,64);
+  state.verifiedEden=Boolean(active&&agreement?.uid===uid&&agreement?.accepted===true
     &&agreement.agreementVersion==="v16-2026.08.27.1"
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
- }catch(e){state.verifiedEden=false;notice("Eden verification could not be checked. PwnZ-only features remain available after profile setup.");}
+ }catch(e){state.edenActive=false;state.verifiedEden=false;notice("Shared Eden identity could not be checked. Posting remains locked.");}
 }
 async function refreshBadgeProgress(){
  if(!state.profile||!state.db||!state.user)return;
@@ -153,8 +175,7 @@ document.querySelectorAll("[data-auth-action]").forEach(x=>x.addEventListener("c
 }));
 $("recheck-eden").addEventListener("click",async()=>{
  if(!state.user)return;
- await checkEdenStatus();state.agreementCurrent=state.verifiedEden;await loadAgreement();
- state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;renderSession();
+ await checkEdenStatus();await loadAgreement();renderSession();
 });
 chooseAuthMode("pwnz");
 async function loadFollowing(){
@@ -278,10 +299,12 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
  const email=$("email").value.trim(),pass=$("password").value;
  const creating=state.authMode==="pwnz"&&state.authAction==="register";
  const requestedEdenRealId=creating?$("eden-realid").value.trim():"";
+ const requestedGamertag=creating?$("signup-gamertag").value.trim().toLowerCase():"";
  $("auth-submit").disabled=true;
  try{
-   if(creating&&!state.backendReady)throw new Error("New ecosystem registration is paused until Firebase permissions are installed.");
+   if(creating&&!state.backendReady)throw new Error("New ecosystem registration is paused until shared Firestore rules are verified.");
    if(creating&&!requestedEdenRealId)throw new Error("Create an Eden RealID before continuing.");
+   if(creating&&!handlePattern.test(requestedGamertag))throw new Error("Choose a 3–24 character PwnZ Gamertag starting with a letter.");
    let credential;
    if(creating)credential=await createUserWithEmailAndPassword(state.auth,email,pass);
    else credential=await signInWithEmailAndPassword(state.auth,email,pass);
@@ -294,8 +317,10 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
      });
      const result=await response.json().catch(()=>({}));
      if(!response.ok||!result.ok)throw new Error(result.message||result.error||"Eden RealID creation failed. Your account exists but onboarding is incomplete; sign in again and retry identity setup.");
-     await checkEdenStatus();
-     notice("Eden RealID created. Now choose your unique PwnZ gamer name.");
+     state.pendingGamertag=requestedGamertag;
+     $("handle").value=requestedGamertag;
+     await checkEdenStatus();await loadAgreement();
+     notice("Eden RealID created. Accept the shared agreement to reserve your PwnZ Gamertag.");
    }else{
      await checkEdenStatus();
      if(state.authMode==="eden"&&!state.edenActive)throw new Error("This account does not have an activated Eden RealID.");
@@ -308,7 +333,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
 });
 $("logout").addEventListener("click",()=>state.auth&&signOut(state.auth).catch(e=>notice(e.message)));
 $("reserve").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.profile||!state.backendReady||!state.edenActive)return;
+ if(!state.user||!state.db||state.profile||!state.backendReady||!state.edenActive||!state.agreementCurrent)return;
  const handle=$("handle").value.trim().toLowerCase(),key=handle;
  if(!handlePattern.test(handle)){notice("Use 3–24 lowercase letters, numbers or underscores, starting with a letter.");return;}
  $("reserve").disabled=true;
