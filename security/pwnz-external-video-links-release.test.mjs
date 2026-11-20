@@ -13,7 +13,7 @@ test("reject URL credentials",()=>assert.throws(()=>parsePwnzMediaLink("https://
 test("extract up to three safe URLs and deduplicate",()=>{const text="Watch https://www.instagram.com/reel/AaBbCcDd1/ again https://www.instagram.com/reel/AaBbCcDd1/ and https://www.tiktok.com/@creator/video/1234567890123456789";assert.equal(extractPwnzMediaCards(text).length,2);});
 test("no arbitrary iframe or third-party script injection",()=>assert.ok(!/tiktok\.com\/embed|instagram\.com\/embed|innerHTML\s*=/.test(src)));
 test("current post schema remains unchanged",()=>{assert.match(src,/body:finalBody/);assert.ok(!src.includes("externalMedia:externalMedia"));});
-test("third party content is an outbound user-controlled click",()=>{assert.match(src,/link\.target="_blank"/);assert.match(src,/link\.rel="noopener noreferrer"/);});
+test("third party content is an outbound user-controlled click",()=>{assert.match(src,/original\.target="_blank"/);assert.match(src,/original\.rel="noopener noreferrer"/);});
 test("five supported providers shown on composer",()=>assert.match(html,/YouTube, Twitch, TikTok, Instagram or Facebook/));
 
 test("Facebook video links are canonical and never arbitrary HTML",()=>{
