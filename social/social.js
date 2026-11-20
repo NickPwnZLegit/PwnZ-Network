@@ -50,6 +50,7 @@ async function init(){
      // PwnZ posting/registration remains gated at the backend.
      await Promise.all([loadProfile(),checkEdenStatus(),...(state.backendReady?[loadFollowing()]:[])]);
      if(state.edenAgreementExpired){state.renewalSignedOut=true;await signOut(state.auth);return;}
+     state.renewalSignedOut=false;
      if(state.backendReady){await loadAgreement();await refreshBadgeProgress();}
    }
    state.agreementCurrent=state.edenActive?state.verifiedEden:state.agreementCurrent;
