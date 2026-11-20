@@ -12,7 +12,7 @@ const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
 const normalizeEdenName = name => String(name||"").normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,edenAgreementExpired:false,renewalSignedOut:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,edenAgreementExpired:false,edenAgreementExpiryMs:0,renewalSignedOut:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -44,7 +44,7 @@ async function init(){
    if(user)$("auth-panel").hidden=true;
    else chooseAuthMode("eden");
    state.user=user; state.profile=null; state.following=new Set();state.edenName="";state.displayIdentity=user?readChoice(user.uid):"eden";
-   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenAgreementExpired=false;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
+   state.agreementCurrent=false;state.edenActive=false;state.verifiedEden=false;state.edenAgreementExpired=false;state.edenAgreementExpiryMs=0;state.edenLookup="unchecked";state.postCount=0;state.youtubeCount=0;state.badgeStatsReady=false;
    if(user){
      // Read only the signed-in user's own Eden and gamer profile even while
      // PwnZ posting/registration remains gated at the backend.
@@ -58,6 +58,16 @@ async function init(){
    if(!user&&state.renewalSignedOut){notice("Agreement expired. Renew it on Light of Hope, then re-sign in with Eden RealID, email and password.");return;}
    if(!state.backendReady)notice(user?(state.gamertagRegistrationReady?"Signed in. Eden-linked Gamertag enrollment is available; posting and social features remain paused.":"Signed in. Gamertag registration and posting remain paused until their separate security gates are approved."):"Email sign-in is available. New member signup and PwnZ social features require their own release gates.");
   });
+  // Long-lived browser sessions must enforce agreement expiry even without reload.
+  window.setInterval(()=>{
+   if(!state.user||!state.edenActive||!state.edenAgreementExpiryMs)return;
+   if(Date.now()>=state.edenAgreementExpiryMs&&!state.renewalSignedOut){
+    state.agreementCurrent=false;state.verifiedEden=false;state.edenAgreementExpired=true;
+    state.renewalSignedOut=true;
+    renderSession();
+    signOut(state.auth).catch(()=>notice("Your agreement expired. Protected actions remain locked until renewal."));
+   }
+  },30000);
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
 async function loadAgreement(){
@@ -155,6 +165,7 @@ async function checkEdenStatus(){
     &&(profile.profileStatus==="active"||profile.edenRealIdStatus==="activated_v16"
       ||(owner.status==="grandfathered"&&owner.reservationType==="legacy-profile-migration"&&Number(profile.memberNumber)>0)));
   const expiry=agreement?.expiresAt?.toDate?.();
+  state.edenAgreementExpiryMs=expiry instanceof Date?expiry.getTime():0;
   state.edenAgreementExpired=Boolean(active&&agreement?.accepted===true&&expiry instanceof Date&&expiry.getTime()<=Date.now());
   state.edenActive=active;
   state.edenName=active&&typeof owner.displayName==="string"&&owner.displayName.trim()
@@ -164,7 +175,7 @@ async function checkEdenStatus(){
   state.verifiedEden=Boolean(active&&agreement?.accepted===true
     &&EDEN_AGREEMENT_VERSIONS.has(agreement.agreementVersion)
     &&expiry instanceof Date&&expiry.getTime()>Date.now());
- }catch(e){state.edenActive=false;state.edenName="";state.verifiedEden=false;state.edenAgreementExpired=false;state.edenLookup="unavailable";
+ }catch(e){state.edenActive=false;state.edenName="";state.verifiedEden=false;state.edenAgreementExpired=false;state.edenAgreementExpiryMs=0;state.edenLookup="unavailable";
   notice("Eden account verification could not be completed. Your PwnZ account was not changed.");}
 }
 async function refreshBadgeProgress(){
