@@ -9,7 +9,7 @@ module.exports=async function handler(req,res){
   return reply(res,404,{ok:false,error:"Device proof testing is not enabled."});
  let url;
  try{url=new URL(target);}catch{return reply(res,503,{ok:false,error:"Device proof gateway not configured."})}
- if(url.protocol!=="https:"||!url.hostname.endsWith(".vercel.app")||
+ if(url.protocol!=="https:"||!(url.hostname.startsWith("light-of-hope-site-")&&url.hostname.endsWith("-nicholas-peffleys-projects.vercel.app"))||
     url.pathname!=="/api/prezk-device"||url.port||url.username||url.password||
     url.search||url.hash)return reply(res,503,{ok:false,error:"Untrusted device gateway origin."});
  const authorization=String(req.headers.authorization||"");
