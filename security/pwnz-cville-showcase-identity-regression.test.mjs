@@ -9,7 +9,8 @@ test("registered Eden owner requires active or grandfathered status and matching
  assert.match(js,/state\.edenActive=active/);
 });
 test("current and transitional 30-day Eden agreements accepted by client",()=>{
- assert.match(js,/EDEN_AGREEMENT_VERSIONS=new Set\(\['v16-2026\.08\.27\.1','ecosystem-2026\.11\.18\.1'\]\)/);
+ assert.match(js,/EDEN_AGREEMENT_VERSIONS=new Set\(\[AGREEMENT.version,'ecosystem-2026\.11\.18\.1'\]\)/);
+ assert.match(js,/import \{AGREEMENT,getAgreementExpiryDate\} from ".\/hope-community-agreement.mjs"/);
  assert.match(js,/EDEN_AGREEMENT_VERSIONS\.has\(agreement\.agreementVersion\)/);
  assert.match(js,/expiry instanceof Date&&expiry\.getTime\(\)>Date\.now\(\)/);
 });
