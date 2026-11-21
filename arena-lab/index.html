@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="theme-color" content="#080e20">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' blob:; media-src blob:; connect-src 'none'; font-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+<title>PwnZ Hope Labs | Orbit Shield + Local Clip Lab</title>
+<link rel="stylesheet" href="./lab.css">
+</head><body>
+<header><div class="eyebrow">PWNZ / HOPE LABS • OFFLINE RESEARCH</div>
+<h1>Orbit Shield <span>+ Clip Lab</span></h1>
+<p>Original mini-arena and browser-local video inspection. No accounts, network gameplay, uploading, tracking, game subscriptions, or real prizes.</p>
+</header>
+<main>
+<section class="panel" aria-labelledby="game-heading">
+<div class="heading">
+<div><h2 id="game-heading">Orbit Shield</h2><p class="hint">Original single-player space-defense prototype. Move with WASD, arrow keys or touch. Hold Space or Fire to shoot.</p></div>
+<div class="actions"><button id="start" type="button">Start round</button><button id="pause" type="button" disabled>Pause</button><button id="reset" type="button">Reset</button></div>
+</div>
+<div class="score"><div>Shields <strong id="health">3</strong></div><div>Score <strong id="score">0</strong></div><div>Time <strong id="time">60.0</strong>s</div><div>Simulation <strong id="fps">0</strong> FPS</div></div>
+<canvas id="arena" width="900" height="520" aria-label="Orbit Shield game arena. Moving blue ship avoids pink drones and fires mint projectiles.">Your browser needs Canvas support.</canvas>
+<div class="touch" aria-label="Touch game controls">
+ <div class="dpad"><button id="up" type="button" aria-label="Move up">▲</button><div><button id="left" type="button" aria-label="Move left">◀</button><button id="down" type="button" aria-label="Move down">▼</button><button id="right" type="button" aria-label="Move right">▶</button></div></div>
+ <button id="fire" type="button" class="fire" aria-label="Fire projectile">FIRE</button>
+</div>
+<p id="game-status" class="status" role="status" aria-live="polite">Ready. Press Start round to play.</p>
+</section>
+<section class="panel" aria-labelledby="clip-heading">
+<h2 id="clip-heading">Local MP4 / WebM Clip Lab</h2>
+<p class="hint">Choose a file already on your device. A local browser video element reads its metadata. Nothing uploads. Limit: 45 MiB and 30 seconds. This is a preview, not transcoding or content approval.</p>
+<label class="picker" for="clip">Choose MP4 or WebM clip</label>
+<input id="clip" type="file" accept=".mp4,.webm,video/mp4,video/webm">
+<p id="clip-status" class="status" role="status" aria-live="polite">No local clip selected.</p>
+<div class="preview" id="clip-preview" hidden>
+<video id="video" controls playsinline preload="metadata"></video>
+<div class="actions"><button id="poster" type="button">Capture local frame</button><button id="clear" type="button">Clear preview</button></div>
+<canvas id="frame" width="320" height="180" hidden aria-label="In-memory video still preview"></canvas>
+<p class="hint" id="file-metrics"></p>
+</div>
+</section>
+<section class="panel fine">
+<h2>Research boundaries</h2>
+<p>Browser-only graphics and local Blob URLs. No browser network connections are permitted by this demo’s CSP. No game package loader, ROM support, third-party assets, login, payment, HI/ANNEAL authorization, video upload, server-side codec inspection or storage. Video thumbnail stays in memory and disappears when the page closes.</p>
+</section>
+</main>
+<footer>Hope Labs × PwnZ | Independent review required before any public feature release.</footer>
+<script type="module" src="./lab.js"></script>
+</body></html>
