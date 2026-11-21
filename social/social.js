@@ -118,7 +118,7 @@ $("pwnz-prezk-recovery").addEventListener("click",()=>pwnzDeviceTest("recovery")
 function renderSession(){
  const signed=Boolean(state.user);
  $("auth-panel").hidden=signed; // Hide ALL signup/sign-in options once authenticated.
- $("pwnz-prezk-panel").hidden=!signed||!state.prezkReady;
+ $("pwnz-prezk-panel").hidden=!signed||!state.prezkReady||!state.profile||!state.verifiedEden;
  $("renewal-signout-help").hidden=signed||!state.renewalSignedOut;
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("account-choices").hidden=signed;
