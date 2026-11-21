@@ -12,7 +12,7 @@ const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
 const normalizeEdenName = name => String(name||"").normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,edenAgreementExpired:false,edenAgreementExpiryMs:0,renewalSignedOut:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,edenAgreementExpired:false,edenAgreementExpiryMs:0,renewalSignedOut:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden",prezkReady:false};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -36,6 +36,7 @@ async function init(){
   state.gamertagRegistrationReady=Boolean(info.gamertagRegistrationReady);
   state.edenRegistrarReady=Boolean(info.edenRegistrarReady);
   state.pairedRegistrationReady=Boolean(info.pairedRegistrationReady);
+  try{state.prezkReady=(await fetch("/api/prezk-device",{cache:"no-store"})).status===401;}catch{state.prezkReady=false;}
   chooseAuthMode(state.authMode);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
@@ -117,7 +118,7 @@ $("pwnz-prezk-recovery").addEventListener("click",()=>pwnzDeviceTest("recovery")
 function renderSession(){
  const signed=Boolean(state.user);
  $("auth-panel").hidden=signed; // Hide ALL signup/sign-in options once authenticated.
- $("pwnz-prezk-panel").hidden=!signed;
+ $("pwnz-prezk-panel").hidden=!signed||!state.prezkReady;
  $("renewal-signout-help").hidden=signed||!state.renewalSignedOut;
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("account-choices").hidden=signed;
