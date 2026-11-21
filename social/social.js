@@ -1,6 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
+import {inspectPreZkDevice,testPreZkDevice} from "../prezk/device.js";
 import {parsePwnzMediaLink,extractPwnzMediaCards,safePwnzEmbedUrl} from "./external-media.mjs";
 import {validateClipMetadata,validateClipDuration,CLIP_DURATION_SECONDS} from "./clip-intake-policy.mjs";
 import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
@@ -11,7 +12,7 @@ const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
 const normalizeEdenName = name => String(name||"").normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
-const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,edenAgreementExpired:false,edenAgreementExpiryMs:0,renewalSignedOut:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden"};
+const state = {auth:null,db:null,user:null,profile:null,unsubscribe:null,posts:[],following:new Set(),verifiedEden:false,postCount:0,youtubeCount:0,authMode:"register",badgeStatsReady:false,agreementCurrent:false,edenActive:false,edenAgreementExpired:false,edenAgreementExpiryMs:0,renewalSignedOut:false,authAction:"signin",backendReady:false,applicationsReady:false,gamertagRegistrationReady:false,edenRegistrarReady:false,pairedRegistrationReady:false,edenLookup:"unchecked",edenName:"",displayIdentity:"eden",prezkReady:false};
 function notice(message){ $("notice").textContent=message; }
 // Client display setting only, per Firebase UID on this device. No auth impact.
 function preferenceKey(uid){return "pwnz-display-choice-v1:"+uid;}
@@ -35,6 +36,7 @@ async function init(){
   state.gamertagRegistrationReady=Boolean(info.gamertagRegistrationReady);
   state.edenRegistrarReady=Boolean(info.edenRegistrarReady);
   state.pairedRegistrationReady=Boolean(info.pairedRegistrationReady);
+  try{state.prezkReady=(await fetch("/api/prezk-device",{cache:"no-store"})).status===401;}catch{state.prezkReady=false;}
   chooseAuthMode(state.authMode);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
@@ -87,9 +89,36 @@ function identityMessage(){
   ?"✓ Eden RealID verified across the ecosystem. Your PwnZ Gamertag stays separate."
   :"✓ Eden RealID linked. Renew the current community agreement on Light of Hope before participating.";
 }
+async function pwnzDeviceTest(mode){
+ const user=state.user,ui=$("pwnz-prezk-status");
+ if(!user)return;
+ for(const id of ["pwnz-prezk-run","pwnz-prezk-refresh","pwnz-prezk-recovery"])$(id).disabled=true;
+ ui.textContent="Checking shared device test…";
+ try{
+  const token=await user.getIdToken(),args={uid:user.uid,idToken:token,network:"pwnz"};
+  if(mode==="run"){
+   const result=await testPreZkDevice(args);
+   ui.textContent=result.status==="device-enrolled"?"This PwnZ browser key was enrolled with a server timestamp.":"Fresh device signature verified for your existing Eden account.";
+  }else if(mode==="recovery"){
+   const response=await fetch("/api/prezk-device",{method:"POST",cache:"no-store",headers:{"Content-Type":"application/json",Authorization:"Bearer "+token},body:JSON.stringify({action:"request-recovery",network:"pwnz"})});
+   const data=await response.json().catch(()=>({}));
+   if(!response.ok||!data.ok)throw Error(data.error||"Recovery review is not available.");
+   ui.textContent="Private human recovery review requested. No device key was replaced.";
+  }else{
+   const d=await inspectPreZkDevice(args);
+   ui.textContent=d.enrolled?"PwnZ device enrolled: "+(d.registeredAt||"timestamp pending"):"No device key enrolled on this PwnZ browser. Existing account is unchanged.";
+  }
+ }catch(e){ui.textContent=e.message||"Pre-ZK device test unavailable."}
+ finally{for(const id of ["pwnz-prezk-run","pwnz-prezk-refresh","pwnz-prezk-recovery"])$(id).disabled=false;}
+}
+$("pwnz-prezk-run").addEventListener("click",()=>pwnzDeviceTest("run"));
+$("pwnz-prezk-refresh").addEventListener("click",()=>pwnzDeviceTest("refresh"));
+$("pwnz-prezk-recovery").addEventListener("click",()=>pwnzDeviceTest("recovery"));
+
 function renderSession(){
  const signed=Boolean(state.user);
  $("auth-panel").hidden=signed; // Hide ALL signup/sign-in options once authenticated.
+ $("pwnz-prezk-panel").hidden=!signed||!state.prezkReady||!state.profile||!state.verifiedEden;
  $("renewal-signout-help").hidden=signed||!state.renewalSignedOut;
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
  $("account-choices").hidden=signed;

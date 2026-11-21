@@ -38,9 +38,13 @@ jobs:
         run: node --test security/pwnz-three-field-renewal-signin.test.mjs
       - name: PwnZ persistent 30-day agreement expiry regression
         run: node --test security/pwnz-v16-2-agreement-expiry.test.mjs
+      - name: PwnZ pre-ZK device preview and shared Eden account bridge
+        run: node --test security/pwnz-prezk-device-bridge.test.mjs
       - name: JavaScript parse and module syntax checks
         run: |
           node --check social/social.js
+          node --check api/prezk-device.js
+          node --check prezk/device.js
           node --check members/members.js
           node --check messenger/pwnz/app.js
           node --check messenger/messenger.js
