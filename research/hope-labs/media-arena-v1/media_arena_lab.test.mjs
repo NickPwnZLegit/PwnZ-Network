@@ -53,7 +53,7 @@ test("unlicensed/restricted executables, network permissions and excess size den
  {...game,assetDigest:"fake"},
  {...game,synthetic:false},
  {...game,code:"base64"},
- {...game,title:"Halo Combat Evolved"},
+ {...game,title:"../../untrusted"},
  ])assert.equal(inspectGameFixture(candidate).accepted,false);
 });
 test("no live capability is enabled by synthetic fixtures",()=>{
