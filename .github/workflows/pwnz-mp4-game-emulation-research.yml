@@ -1,0 +1,27 @@
+name: PwnZ MP4 and Licensed Browser Game Research
+on:
+  push:
+    branches:
+      - research/pwnz-mp4-wasm-game-lab-v1-2026-11-21
+  pull_request:
+    paths:
+      - research/hope-labs/media-arena-v1/**
+      - .github/workflows/pwnz-mp4-game-emulation-research.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  media-arena-research:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: MP4 WebM and WASM WebGL research integrity tests
+        run: node --test research/hope-labs/media-arena-v1/media_arena_lab.test.mjs
+      - name: Syntax-only validation
+        run: node --check research/hope-labs/media-arena-v1/media_arena_lab.mjs
+      - name: Preserve existing video metadata contract
+        run: node --test security/pwnz-external-video-links-release.test.mjs
