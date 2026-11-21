@@ -15,7 +15,17 @@
     <a class="btn primary" href="https://light-of-hope.net/#/profile" rel="noopener noreferrer">Read and accept the shared agreement</a>
     <button class="btn" id="recheck-eden" type="button">I accepted it, check again</button>
   </div>
-  <p class="muted">Use your original account on Light of Hope. Your PwnZ Gamertag remains connected to your Eden RealID.</p>
+  <div class="paired-identity-box" id="hope-agreement-native" hidden>
+    <span class="paired-step">Final step · Shared 30-day agreement</span>
+    <h3 id="hope-agreement-name">Hope Network Community Rules</h3>
+    <p class="muted">This is the full published agreement used by Light of Hope and EdenNetwork. Accepting on PwnZ writes to the same shared agreement record, with no additional PwnZ-only agreement. Version: <strong id="hope-agreement-version"></strong>.</p>
+    <div id="hope-agreement-sections" class="agreement-scroll" role="region" tabindex="0" aria-label="Complete shared Hope Network Community Rules Agreement"></div>
+    <p class="muted" id="hope-agreement-acknowledgement"></p>
+    <label class="agreement-check"><input type="checkbox" id="hope-agreement-check"> I have read and agree to the shared Light of Hope Community Rules Agreement.</label>
+    <button class="btn primary" id="hope-agreement-submit" type="button" disabled>Accept shared agreement for 30 days</button>
+    <p id="hope-agreement-status" class="muted" role="status"></p>
+  </div>
+  <p class="muted">You may also accept or renew directly on Light of Hope with the same account. Your Eden RealID and PwnZ Gamertag remain connected.</p>
 </section>
 <section class="panel" id="auth-panel" hidden><h2>Your account</h2>
 <div class="account-choices" id="account-choices" role="group" aria-label="Choose account type">
