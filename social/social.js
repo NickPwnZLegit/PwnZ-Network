@@ -1,5 +1,5 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
 import {parsePwnzMediaLink,extractPwnzMediaCards,safePwnzEmbedUrl} from "./external-media.mjs";
 import {validateClipMetadata,validateClipDuration,CLIP_DURATION_SECONDS} from "./clip-intake-policy.mjs";
@@ -7,7 +7,6 @@ import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc,
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-const AGREEMENT_VERSION='pwnz-2026.10.30.1'; // Legacy record; no new PwnZ-only enrollment.
 const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.1']);
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
@@ -39,6 +38,8 @@ async function init(){
   chooseAuthMode(state.authMode);
   const app=initializeApp(info.config);
   state.auth=getAuth(app);state.db=getFirestore(app);
+  // Keep the session on this device until logout or shared agreement expiry.
+  await setPersistence(state.auth,browserLocalPersistence);
   // Wait for Firebase to resolve the remembered session before rendering auth.
   onAuthStateChanged(state.auth,async user=>{
    if(user)$("auth-panel").hidden=true;
@@ -71,22 +72,10 @@ async function init(){
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
 async function loadAgreement(){
- if(state.edenActive){state.agreementCurrent=state.verifiedEden;return;}
- try{const record=await getDoc(doc(state.db,"pwnzAgreements",state.user.uid));
-  const a=record.exists()?record.data():{};
-  state.agreementCurrent=state.edenActive ? state.verifiedEden : (a.version===AGREEMENT_VERSION&&a.accepted===true&&a.expiresAt?.toMillis?.()>Date.now());
- }catch(e){state.agreementCurrent=false;notice("Agreement permission check unavailable. Community posting remains locked.");}
+  // Only the shared Hope Network agreement grants PwnZ participation.
+  // Historical PwnZ-only agreement records stay stored for migration.
+  state.agreementCurrent=Boolean(state.edenActive&&state.verifiedEden);
 }
-$("agree-submit").addEventListener("click",async()=>{
- if(!state.user||!state.db||state.edenActive||!$("agree-check").checked){$("agree-status").textContent="Please read and check the agreement first.";return;}
- const btn=$("agree-submit");btn.disabled=true;
- try{
-  const now=Date.now();
-  await setDoc(doc(state.db,"pwnzAgreements",state.user.uid),{uid:state.user.uid,accepted:true,version:AGREEMENT_VERSION,acceptedAt:serverTimestamp(),expiresAt:new Date(now+30*24*60*60*1000-5*60*1000)});
-  await loadAgreement();renderSession();notice("PwnZ agreement accepted. Your community access is available.");
- }catch(e){$("agree-status").textContent="Could not save agreement: "+e.message;}
- finally{btn.disabled=false;}
-});
 function identityMessage(){
  if(!state.user)return "Choose an ecosystem account path above.";
  if(state.edenLookup==="unavailable")return "Signed in, but the Eden RealID status check could not be completed. No account was changed.";
@@ -100,7 +89,6 @@ function identityMessage(){
 }
 function renderSession(){
  const signed=Boolean(state.user);
- $("community-agreement").hidden=true; // All new PwnZ accounts require an Eden RealID.
  $("auth-panel").hidden=signed; // Hide ALL signup/sign-in options once authenticated.
  $("renewal-signout-help").hidden=signed||!state.renewalSignedOut;
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
@@ -412,7 +400,7 @@ $("resume-paired-submit").addEventListener("click",async()=>{
   if(!state.user||state.edenActive||!["missing-owner","missing-profile"].includes(state.edenLookup))
    throw new Error("This account cannot begin another Eden identity.");
   await reservePairedIdentity($("resume-eden-realid").value,$("resume-pwnz-gamertag").value);
-  notice("Both names activated under this same account.");
+  notice("Both names activated under the same account. Complete the shared 30-day community agreement before participating.");
  }catch(error){notice(error.message);}
  finally{button.disabled=false;}
 });
@@ -437,7 +425,7 @@ $("login-form").addEventListener("submit",async e=>{e.preventDefault();if(!state
      // until the single trusted Firestore transaction confirms BOTH.
      state.user=credential.user;
      await reservePairedIdentity(requestedEdenRealId,requestedGamerTag);
-     notice("Eden RealID and PwnZ Gamertag activated together on one account.");
+     notice("Both names are linked to one account. Next: accept the shared 30-day Hope Network community agreement before using member features.");
    }else{
      state.user=credential.user;
      await checkEdenStatus();
