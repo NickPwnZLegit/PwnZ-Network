@@ -1,13 +1,15 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, setPersistence, browserLocalPersistence } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
 import { evaluatePwnzBadges } from "./badges.js";
+import {AGREEMENT,getAgreementExpiryDate} from "./hope-community-agreement.mjs";
 import {parsePwnzMediaLink,extractPwnzMediaCards,safePwnzEmbedUrl} from "./external-media.mjs";
 import {validateClipMetadata,validateClipDuration,CLIP_DURATION_SECONDS} from "./clip-intake-policy.mjs";
-import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+import { getFirestore, doc, collection, getDoc, getDocs, runTransaction, writeBatch, Timestamp, addDoc, setDoc, deleteDoc, serverTimestamp, query, where, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
 
 const $ = id => document.getElementById(id);
 const escapeHTML = str => String(str ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
-const EDEN_AGREEMENT_VERSIONS=new Set(['v16-2026.08.27.1','ecosystem-2026.11.18.1']);
+const EDEN_AGREEMENT_VERSIONS=new Set([AGREEMENT.version,'ecosystem-2026.11.18.1']);
+let hopeAgreementReady=false;
 const handlePattern = /^[a-z][a-z0-9_]{2,23}$/;
 const edenNamePattern = /^[A-Za-z0-9](?:[A-Za-z0-9 ._-]*[A-Za-z0-9])?$/;
 const normalizeEdenName = name => String(name||"").normalize("NFKC").trim().replace(/\s+/g," ").toLowerCase();
@@ -26,6 +28,7 @@ function getVideoId(url){try{const u=new URL(url), h=u.hostname.toLowerCase().re
 function twitchName(raw){const v=String(raw||"").trim().replace(/^@/,"");return /^[A-Za-z0-9_]{3,25}$/.test(v)?v:"";}
 async function init(){
  try{
+  setupHopeAgreementUI();
   const response=await fetch("/api/pwnz-config",{cache:"no-store"});
   if(!response.ok)throw new Error("Configuration endpoint unavailable");
   const info=await response.json();
@@ -71,6 +74,53 @@ async function init(){
   },30000);
  }catch(e){notice("Social connectivity unavailable. "+e.message);}
 }
+function setupHopeAgreementUI(){
+ const list=$("hope-agreement-sections"),ack=$("hope-agreement-check"),submit=$("hope-agreement-submit");
+ if(!list||!ack||!submit||AGREEMENT.validityDays!==30||!Array.isArray(AGREEMENT.sections)||AGREEMENT.sections.length<10)
+   throw Error("Full shared Hope agreement is unavailable.");
+ $("hope-agreement-name").textContent=AGREEMENT.title;
+ $("hope-agreement-version").textContent=AGREEMENT.version;
+ $("hope-agreement-acknowledgement").textContent=AGREEMENT.acknowledgement;
+ for(const section of AGREEMENT.sections){
+   const box=document.createElement("article"),h=document.createElement("h4");
+   h.textContent=section.title;box.append(h);
+   for(const paragraph of section.paragraphs){
+     const p=document.createElement("p");p.textContent=paragraph;box.append(p);
+   }
+   list.append(box);
+ }
+ ack.addEventListener("change",()=>submit.disabled=!ack.checked);
+ submit.addEventListener("click",async()=>{
+   if(!state.auth?.currentUser||!state.db||!state.edenActive||state.verifiedEden||!hopeAgreementReady||!ack.checked)return;
+   submit.disabled=true;
+   $("hope-agreement-status").textContent="Saving your shared network agreement...";
+   try{
+     const uid=state.auth.currentUser.uid;
+     const now=new Date();
+     const history=doc(collection(state.db,"agreementHistory",uid,"acceptances"));
+     const receipt={
+       uid,agreementId:AGREEMENT.id,agreementVersion:AGREEMENT.version,
+       effectiveLabel:AGREEMENT.effectiveLabel,accepted:true,
+       acceptedAt:serverTimestamp(),acceptedAtClient:Timestamp.fromDate(now),
+       expiresAt:Timestamp.fromDate(getAgreementExpiryDate(now)),
+       validityDays:AGREEMENT.validityDays,updatedAt:serverTimestamp()
+     };
+     // One atomic shared agreement and append-only history entry, never a PwnZ-only agreement.
+     const batch=writeBatch(state.db);
+     batch.set(doc(state.db,"agreements",uid),receipt,{merge:true});
+     batch.set(history,{...receipt,historyRecordId:history.id});
+     await batch.commit();
+     await checkEdenStatus();
+     state.agreementCurrent=Boolean(state.edenActive&&state.verifiedEden);
+     renderSession();
+     if(state.agreementCurrent)notice("Shared Community Rules Agreement accepted for 30 days across the Hope Network.");
+     else notice("Agreement saved; verification is pending. Recheck this account before using member features.");
+   }catch(error){
+     $("hope-agreement-status").textContent="Shared agreement acceptance failed: "+(error?.message||"Unable to verify.");
+   }finally{ack.checked=false;submit.disabled=true;}
+ });
+ hopeAgreementReady=true;
+}
 async function loadAgreement(){
   // Only the shared Hope Network agreement grants PwnZ participation.
   // Historical PwnZ-only agreement records stay stored for migration.
@@ -92,6 +142,7 @@ function renderSession(){
  $("auth-panel").hidden=signed; // Hide ALL signup/sign-in options once authenticated.
  $("renewal-signout-help").hidden=signed||!state.renewalSignedOut;
  $("eden-renewal").hidden=!(signed&&state.edenActive&&!state.verifiedEden);
+ $("hope-agreement-native").hidden=!(signed&&state.edenActive&&!state.verifiedEden&&hopeAgreementReady);
  $("account-choices").hidden=signed;
  $("auth-help").hidden=signed;
  $("login-form").hidden=signed;$("signed-in").hidden=!signed;$("profile-form").hidden=!(signed&&state.backendReady&&state.agreementCurrent);
