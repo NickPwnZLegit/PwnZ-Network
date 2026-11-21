@@ -1,0 +1,25 @@
+name: Hope Labs V1 Offline Aggregate Adapter Contract
+on:
+  pull_request:
+    paths:
+      - research/hope-labs/readonly-adapter-v1/**
+      - .github/workflows/hope-labs-readonly-adapter-v1.yml
+  push:
+    branches:
+      - research/hope-labs-readonly-adapter-v1-2026-11-20
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Test strict offline aggregate-only adapter and non-authoritative AI boundary
+        run: node --test research/hope-labs/readonly-adapter-v1/readonly-adapter-v1.test.mjs
+      - name: Parse shared module
+        run: node --check research/hope-labs/readonly-adapter-v1/readonly-adapter-v1.mjs
