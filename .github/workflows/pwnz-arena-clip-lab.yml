@@ -1,0 +1,33 @@
+name: PwnZ Original Arena and Local MP4 Research
+on:
+  push:
+    branches:
+      - research/pwnz-original-arena-local-mp4-v2-2026-11-21
+  pull_request:
+    paths:
+      - arena-lab/**
+      - research/hope-labs/media-arena-v2/**
+      - .github/workflows/pwnz-arena-clip-lab.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  local-arena-media:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Original game engine and local media validation
+        run: node --test research/hope-labs/media-arena-v2/*.test.mjs
+      - name: Browser module and sandbox syntax
+        run: |
+          node --check arena-lab/lab.js
+          node --check research/hope-labs/media-arena-v2/arena-engine.mjs
+          node --check research/hope-labs/media-arena-v2/local-media-preview.mjs
+      - name: Deterministic simulation microbenchmark (not real device FPS)
+        run: node research/hope-labs/media-arena-v2/bench_arena.mjs > /tmp/pwnz-arena-synthetic-cpu.json
+      - name: Test expected legacy research caps
+        run: node --test research/hope-labs/media-arena-v1/media_arena_lab.test.mjs
